@@ -1,0 +1,3 @@
+-- Seed 100 integrations
+-- Run after catalog-100.ts is loaded, see that file for full list
+-- Example: insert into integrations (provider) values ('hubspot'), ('mailchimp'), ('pipedrive');
