@@ -59,7 +59,7 @@ export default function ToolChecker({ type, defaultPlaceholder, toolTitle }: Pro
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-6 sm:p-8 shadow-2xl">
+    <div className="dp-card p-6 sm:p-8">
       <div className="flex flex-col sm:flex-row gap-3">
         <input
           type="text"
@@ -67,39 +67,39 @@ export default function ToolChecker({ type, defaultPlaceholder, toolTitle }: Pro
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleRun()}
           placeholder={getPlaceholder()}
-          className="flex-1 rounded-xl bg-white/5 border border-white/15 px-4 py-3.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#A3E635] focus:ring-1 focus:ring-[#A3E635] transition-all font-mono"
+          className="flex-1 rounded-lg bg-ground border border-rule px-4 py-3 text-ink placeholder-ink-secondary/60 text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all font-mono"
         />
         <button
           onClick={handleRun}
           disabled={loading || !input.trim()}
-          className="rounded-xl bg-[#A3E635] hover:bg-[#bef264] disabled:opacity-50 text-black font-bold px-6 py-3.5 text-sm transition-all whitespace-nowrap shadow-md hover:shadow-[#A3E635]/20"
+          className="dp-btn-primary px-6 py-3 whitespace-nowrap text-sm disabled:opacity-50"
         >
           {loading ? 'Checking...' : 'Check Free'}
         </button>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+      <div className="mt-3 flex items-center justify-between text-xs text-ink-secondary">
         <span>⚡ Real-time lookup · 100% Free · No credit card required</span>
-        <span className="text-gray-400">Powered by VerifyOne Engine</span>
+        <span className="text-ink-secondary/70">Powered by VerifyOne Engine</span>
       </div>
 
       {result && (
-        <div className="mt-6 rounded-xl bg-black/40 border border-white/10 p-5 animate-in fade-in duration-300">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
+        <div className="mt-6 rounded-lg bg-ground-muted border border-rule p-5 animate-in fade-in duration-160">
+          <div className="flex items-center justify-between border-b border-rule pb-3 mb-4">
             <div className="flex items-center gap-2.5">
-              <span className={`h-3 w-3 rounded-full ${result.valid !== false ? 'bg-[#A3E635]' : 'bg-red-400'}`} />
-              <span className="font-semibold text-sm text-white">
+              <span className={`h-2.5 w-2.5 rounded-full ${result.valid !== false ? 'bg-accent' : 'bg-red-500'}`} />
+              <span className="font-semibold text-sm text-ink">
                 {result.valid !== false ? 'Verification Successful' : 'Validation Alert / Issue Detected'}
               </span>
             </div>
-            <span className="text-xs text-[#A3E635] font-mono font-medium">Checked in 42ms</span>
+            <span className="text-xs text-accent font-mono font-medium">Checked in 42ms</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-xs">
             {Object.entries(result).map(([key, val]) => (
-              <div key={key} className="flex justify-between py-1.5 border-b border-white/5">
-                <span className="text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                <span className="font-mono font-semibold text-gray-200">{String(val)}</span>
+              <div key={key} className="flex justify-between py-1.5 border-b border-rule/60">
+                <span className="text-ink-secondary capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                <span className="font-mono font-medium text-ink">{String(val)}</span>
               </div>
             ))}
           </div>

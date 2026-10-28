@@ -27,57 +27,66 @@ const plans = [
 
 export default function Pricing() {
   return (
-    <section className="bg-[#0A0F1E] py-24 px-4">
+    <section id="pricing" className="bg-ground-muted py-24 px-4 border-t border-b border-rule">
       <div className="max-w-5xl mx-auto">
-        <h2 className="text-center text-4xl font-extrabold text-white mb-2">
-          Simple, usage-based pricing
-        </h2>
-        <p className="text-center text-gray-400 mb-12">
-          No contracts. Credits roll over 3 months. 7-day free trial on every plan.
-        </p>
+        <div className="text-center max-w-2xl mx-auto mb-14">
+          <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent bg-accent/10 border border-accent/20 rounded-full mb-3">
+            Transparent Pricing
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-ink font-display tracking-tight mb-3">
+            Simple, usage-based pricing
+          </h2>
+          <p className="text-ink-secondary text-base">
+            No contracts. Universal credits roll over 3 months. 7-day free trial on every plan.
+          </p>
+        </div>
 
         <div className="grid md:grid-cols-3 gap-6">
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative rounded-2xl border p-8 flex flex-col transition-all ${
+              className={`relative rounded-panel p-8 flex flex-col transition-all duration-160 ease-out ${
                 plan.highlight
-                  ? 'border-[#A3E635] bg-[#A3E635]/5 shadow-lg shadow-[#A3E635]/10'
-                  : 'border-white/10 bg-white/5'
+                  ? 'bg-panel border-2 border-accent shadow-lg shadow-accent/5'
+                  : 'bg-panel border border-rule shadow-sm'
               }`}
             >
               {plan.highlight && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#A3E635] text-black text-xs font-bold px-4 py-1">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent text-white text-xs font-bold px-4 py-1 shadow-sm">
                   Most Popular
                 </span>
               )}
 
-              <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              <p className="text-xs font-bold text-ink-secondary uppercase tracking-wider mb-2">
                 {plan.name}
               </p>
-              <div className="flex items-end gap-1 mb-1">
-                <span className="text-4xl font-extrabold text-white">\${plan.price}</span>
-                <span className="text-gray-400 mb-1">/mo</span>
+              <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-4xl font-extrabold text-ink font-display tracking-tight">${plan.price}</span>
+                <span className="text-ink-secondary text-sm">/month</span>
               </div>
-              <p className="text-[#A3E635] text-sm font-semibold mb-6">
+              <p className="text-accent text-sm font-semibold mb-6">
                 {plan.credits} credits / month
               </p>
 
-              <ul className="space-y-2 mb-8 flex-1">
+              <div className="h-px bg-rule w-full mb-6" />
+
+              <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-gray-300">
-                    <span className="text-[#A3E635] mt-0.5">✓</span>
-                    {f}
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                    <svg className="w-4 h-4 text-accent shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>
 
               <a
                 href="/dashboard"
-                className={`block text-center rounded-xl py-3 font-bold text-sm transition-colors ${
+                className={`block text-center rounded-lg py-3 font-semibold text-sm transition-all duration-160 ${
                   plan.highlight
-                    ? 'bg-[#A3E635] hover:bg-[#bef264] text-black'
-                    : 'bg-white/10 hover:bg-white/20 text-white'
+                    ? 'dp-btn-primary'
+                    : 'dp-btn-secondary'
                 }`}
               >
                 {plan.cta}
@@ -86,7 +95,7 @@ export default function Pricing() {
           ))}
         </div>
 
-        <p className="text-center text-gray-500 text-xs mt-8">
+        <p className="text-center text-ink-secondary text-xs mt-10">
           All plans include phone + email + IP validation. 1 credit = 1 core check. HLR = 5 credits. DNC = 10 credits.
         </p>
       </div>

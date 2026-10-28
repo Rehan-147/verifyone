@@ -20,64 +20,64 @@ export default function ComparePage({ params }: { params: { slug: string } }) {
   if (!item) return notFound();
 
   return (
-    <div className="min-h-screen bg-[#0A0F1E] text-white">
+    <div className="min-h-screen bg-ground text-ink">
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-16">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-xs text-gray-500 mb-6">
-          <Link href="/" className="hover:text-white transition-colors">Home</Link>
+        <nav className="flex items-center gap-2 text-xs text-ink-secondary mb-6">
+          <Link href="/" className="hover:text-ink transition-colors">Home</Link>
           <span>/</span>
-          <span className="text-gray-400">Compare</span>
+          <span className="text-ink-secondary">Compare</span>
           <span>/</span>
-          <span className="text-[#A3E635]">vs {item.competitor}</span>
+          <span className="text-accent font-medium">vs {item.competitor}</span>
         </nav>
 
         <header className="text-center mb-12">
-          <span className="inline-block rounded-full bg-[#A3E635]/10 border border-[#A3E635]/30 px-3.5 py-1 text-xs font-semibold text-[#A3E635] uppercase tracking-wider mb-4">
+          <span className="inline-block rounded-full bg-accent/10 border border-accent/20 px-3.5 py-1 text-xs font-semibold text-accent uppercase tracking-wider mb-4">
             Competitor Benchmark
           </span>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white mb-4">
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-ink font-display tracking-tight mb-4">
             VerifyOne vs {item.competitor}
           </h1>
-          <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto">
-            A transparent feature-by-feature and pricing comparison for high-volume lead agencies.
+          <p className="text-ink-secondary text-base sm:text-lg max-w-2xl mx-auto">
+            A transparent feature-by-feature and pricing comparison for high-volume lead agencies and data teams.
           </p>
         </header>
 
         {/* Comparison Table */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden shadow-2xl mb-12">
+        <div className="dp-card overflow-hidden shadow-sm mb-12">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-white/5 border-b border-white/10">
-                <th className="py-4 px-6 text-gray-400 font-semibold">Feature / Metric</th>
-                <th className="py-4 px-6 text-[#A3E635] font-bold">VerifyOne</th>
-                <th className="py-4 px-6 text-gray-300 font-semibold">{item.competitor}</th>
+              <tr className="bg-ground-muted border-b border-rule">
+                <th className="py-4 px-6 text-ink-secondary font-semibold text-xs uppercase tracking-wider">Feature / Metric</th>
+                <th className="py-4 px-6 text-accent font-bold text-sm">VerifyOne</th>
+                <th className="py-4 px-6 text-ink font-semibold text-sm">{item.competitor}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-rule">
               <tr>
-                <td className="py-4 px-6 text-gray-300 font-medium">Pricing / 1,000 checks</td>
-                <td className="py-4 px-6 text-[#A3E635] font-bold font-mono">$2.00 - $4.95</td>
-                <td className="py-4 px-6 text-gray-400 font-mono">{item.pricePer1k.split('vs')[1] || '$5.00+'}</td>
+                <td className="py-4 px-6 text-ink font-medium">Pricing / 1,000 checks</td>
+                <td className="py-4 px-6 text-accent font-bold font-mono">$2.00 - $4.95</td>
+                <td className="py-4 px-6 text-ink-secondary font-mono">{item.pricePer1k.split('vs')[1] || '$5.00+'}</td>
               </tr>
               <tr>
-                <td className="py-4 px-6 text-gray-300 font-medium">Data Scope</td>
-                <td className="py-4 px-6 text-white font-medium">Phone + Email + IP + Domain (74 Products)</td>
-                <td className="py-4 px-6 text-gray-400">Single vertical only</td>
+                <td className="py-4 px-6 text-ink font-medium">Data Scope</td>
+                <td className="py-4 px-6 text-ink font-medium">Phone + Email + IP + Domain (74 Products)</td>
+                <td className="py-4 px-6 text-ink-secondary">Single vertical only</td>
               </tr>
               <tr>
-                <td className="py-4 px-6 text-gray-300 font-medium">Credit System</td>
-                <td className="py-4 px-6 text-[#A3E635] font-medium">Universal shared credits with 3-month rollover</td>
-                <td className="py-4 px-6 text-gray-400">Per-API siloed plans, no rollover</td>
+                <td className="py-4 px-6 text-ink font-medium">Credit System</td>
+                <td className="py-4 px-6 text-accent font-medium">Universal shared credits with 3-month rollover</td>
+                <td className="py-4 px-6 text-ink-secondary">Per-API siloed plans, no rollover</td>
               </tr>
               <tr>
-                <td className="py-4 px-6 text-gray-300 font-medium">AI & Agent Native</td>
-                <td className="py-4 px-6 text-white font-medium">Official MCP Server (Claude/Cursor)</td>
-                <td className="py-4 px-6 text-gray-400">Not available</td>
+                <td className="py-4 px-6 text-ink font-medium">AI &amp; Agent Native</td>
+                <td className="py-4 px-6 text-ink font-medium">Official MCP Server (Claude/Cursor)</td>
+                <td className="py-4 px-6 text-ink-secondary">Not available</td>
               </tr>
               <tr>
-                <td className="py-4 px-6 text-gray-300 font-medium">Bulk CSV Engine</td>
-                <td className="py-4 px-6 text-white font-medium">Built-in up to millions of rows</td>
-                <td className="py-4 px-6 text-gray-400">Requires custom code or add-on</td>
+                <td className="py-4 px-6 text-ink font-medium">Bulk CSV Engine</td>
+                <td className="py-4 px-6 text-ink font-medium">Built-in up to millions of rows</td>
+                <td className="py-4 px-6 text-ink-secondary">Requires custom code or add-on</td>
               </tr>
             </tbody>
           </table>
@@ -85,19 +85,19 @@ export default function ComparePage({ params }: { params: { slug: string } }) {
 
         {/* Breakdown Analysis */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          <div className="rounded-xl border border-[#A3E635]/30 bg-[#A3E635]/5 p-6">
-            <h3 className="font-bold text-white text-base mb-2">Why Switch to VerifyOne</h3>
-            <p className="text-sm text-gray-300 leading-relaxed">{item.verifyOne}</p>
+          <div className="rounded-panel border-2 border-accent/30 bg-accent/5 p-6 shadow-sm">
+            <h3 className="font-bold text-ink text-base mb-2 font-display">Why Switch to VerifyOne</h3>
+            <p className="text-sm text-ink-secondary leading-relaxed">{item.verifyOne}</p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-            <h3 className="font-bold text-gray-300 text-base mb-2">Limitations of {item.competitor}</h3>
-            <p className="text-sm text-gray-400 leading-relaxed">{item.competitorNote}</p>
+          <div className="dp-card p-6">
+            <h3 className="font-bold text-ink text-base mb-2 font-display">Limitations of {item.competitor}</h3>
+            <p className="text-sm text-ink-secondary leading-relaxed">{item.competitorNote}</p>
           </div>
         </div>
 
         {/* Other Comparisons Grid */}
-        <section className="border-t border-white/10 pt-10">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">
+        <section className="border-t border-rule pt-10">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-secondary mb-4 font-display">
             Compare other alternatives
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -105,10 +105,10 @@ export default function ComparePage({ params }: { params: { slug: string } }) {
               <Link
                 key={c.slug}
                 href={`/compare/${c.slug}`}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                className={`text-xs px-3.5 py-2 rounded-lg border transition-all duration-160 ${
                   c.slug === item.slug
-                    ? 'border-[#A3E635] text-[#A3E635] bg-[#A3E635]/10 font-bold'
-                    : 'border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                    ? 'border-accent text-accent bg-accent/10 font-bold'
+                    : 'border-rule bg-panel text-ink-secondary hover:text-ink hover:border-rule'
                 }`}
               >
                 vs {c.competitor}
