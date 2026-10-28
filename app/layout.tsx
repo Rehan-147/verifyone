@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 export const metadata: Metadata = {
   title: 'VerifyOne - Phone, Email & IP Validation API',
-  description: 'Validate phone, email & IP in real time. One API, one credit balance. 7-day free trial.',
+  description: 'Validate phone, email & IP in real time. 74+ data products, one API, one universal credit balance.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -17,7 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased min-h-screen flex flex-col bg-[#0A0F1E] text-white">
+        <Navbar />
+        <div className="flex-1">{children}</div>
+        <Footer />
+      </body>
     </html>
   );
 }
