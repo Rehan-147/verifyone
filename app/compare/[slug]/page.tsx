@@ -12,6 +12,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   return {
     title: `VerifyOne vs ${item.competitor} | Feature & Cost Comparison`,
     description: `Compare VerifyOne vs ${item.competitor}. See why agencies switch to VerifyOne for unified phone, email, and IP validation with rollover credits.`,
+    alternates: { canonical: `https://app.verifyone.io/compare/${item.slug}` },
   };
 }
 

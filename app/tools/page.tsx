@@ -4,6 +4,7 @@ import { TOOLS } from '../../lib/data/tools';
 export const metadata = {
   title: 'Free SEO Validation & Intelligence Tools | VerifyOne',
   description: 'Explore 20+ free developer and agency tools for phone carrier lookups, email verification, IP fraud detection, and domain intelligence.',
+  alternates: { canonical: 'https://app.verifyone.io/tools' },
 };
 
 export default function ToolsIndexPage() {

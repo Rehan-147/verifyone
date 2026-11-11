@@ -13,6 +13,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   return {
     title: tool.seoTitle,
     description: tool.description,
+    alternates: { canonical: `https://app.verifyone.io/tools/${tool.slug}` },
   };
 }
 

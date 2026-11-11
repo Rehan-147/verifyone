@@ -1,0 +1,12 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: process.env.PW_CHROME });
+const p = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+await p.goto('http://127.0.0.1:3021/', { waitUntil: 'load' });
+await p.waitForTimeout(2000);
+await p.evaluate(() => document.querySelector('.csstabs').scrollIntoView({ block: 'center' }));
+await p.waitForTimeout(900);
+const btns = await p.$$('.csstabs .tabbtn');
+await btns[4].click();
+await p.waitForTimeout(600);
+await (await p.$('.csstabs')).screenshot({ path: 'redesign/fixed-tabstrip.png' });
+await b.close();

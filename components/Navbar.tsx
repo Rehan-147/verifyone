@@ -1,118 +1,242 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { TOOLS } from '../lib/data/tools';
-import { INTEGRATIONS } from '../lib/integrations/catalog-100';
+
+const NAV_LINKS = [
+  { href: '/#product', label: 'Product' },
+  { href: '/#how-it-works', label: 'How it works' },
+  { href: '/for-platforms', label: 'For AI platforms' },
+  { href: '/for-agents', label: 'For agencies' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/docs', label: 'Docs' },
+];
+
+const RESOURCE_LINKS = [
+  { href: '/docs', label: 'Documentation' },
+  { href: '/integrations', label: 'Integrations' },
+  { href: '/tools', label: 'Free tools' },
+  { href: '/security', label: 'Security' },
+  { href: '/status', label: 'API status' },
+];
+
+const linkClass =
+  'px-3 py-2 rounded-md text-sm font-normal transition-colors hover:bg-[var(--theme-hover)] focus-visible:outline-2 focus-visible:outline-[var(--theme-focus)]';
+const linkStyle = { color: 'var(--theme-text-secondary)' } as const;
+
+function MoonIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <path
+        d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default function Navbar() {
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem('verifyone-theme') !== 'dark') return;
+    setDark(true);
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }, []);
+
+  function toggleTheme() {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    localStorage.setItem('verifyone-theme', next ? 'dark' : 'light');
+  }
 
   return (
     <header
-      className="sticky top-0 z-50 bg-panel border-b border-rule"
-      style={{ transition: `box-shadow 160ms ease-out` }}
+      className="sticky top-0 z-50 border-b"
+      style={{
+        background: 'var(--theme-surface-translucent)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderColor: 'var(--theme-border)',
+      }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand */}
-        <div className="flex items-center gap-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 rounded"
+      <div className="container flex items-center justify-between gap-4" style={{ height: 72 }}>
+        <Link
+          href="/"
+          className="flex items-center gap-2 shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[var(--theme-focus)]"
+        >
+          <span
+            className="text-xl font-semibold tracking-tight"
+            style={{
+              letterSpacing: '-0.02em',
+              color: 'var(--theme-text-primary)',
+              fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+            }}
           >
-            <span
-              className="text-xl font-bold tracking-tight text-ink"
-              style={{ fontFamily: '"Host Grotesk", sans-serif', letterSpacing: '-0.03em' }}
+            Verify<span style={{ color: 'var(--theme-brand)' }}>One</span>
+          </span>
+        </Link>
+
+        <nav className="hidden xl:flex items-center" aria-label="Primary">
+          {NAV_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className={linkClass} style={linkStyle}>
+              {l.label}
+            </Link>
+          ))}
+
+          <div className="relative">
+            <button
+              type="button"
+              aria-expanded={resourcesOpen}
+              aria-haspopup="true"
+              onClick={() => setResourcesOpen((v) => !v)}
+              onBlur={() => setTimeout(() => setResourcesOpen(false), 180)}
+              className={linkClass}
+              style={linkStyle}
             >
-              Verify<span className="text-accent">One</span>
-            </span>
-            <span className="hidden sm:inline-block text-[10px] uppercase font-semibold tracking-widest px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
-              API
-            </span>
-          </Link>
-
-          {/* Nav links */}
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-ink-secondary">
-            {/* Free Tools dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setToolsOpen(!toolsOpen)}
-                onBlur={() => setTimeout(() => setToolsOpen(false), 200)}
-                aria-expanded={toolsOpen}
-                aria-haspopup="true"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-ground-muted hover:text-ink transition-[background,color] duration-[160ms] ease-out focus-visible:outline-accent focus-visible:outline-2"
+              Resources
+              <svg
+                className={`inline w-3.5 h-3.5 ml-1 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
               >
-                Free Tools
-                <span className="font-mono text-[11px] text-accent font-semibold">({TOOLS.length})</span>
-                <svg
-                  className={`w-3.5 h-3.5 text-ink-secondary transition-transform duration-[160ms] ease-out ${toolsOpen ? 'rotate-180' : ''}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-              {toolsOpen && (
-                <div className="absolute top-full left-0 mt-1 w-72 max-h-80 overflow-y-auto dp-card z-50 py-1">
-                  <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-ink-secondary border-b border-rule">
-                    Free Online Tools
-                  </div>
-                  {TOOLS.map((tool) => (
-                    <Link
-                      key={tool.slug}
-                      href={`/tools/${tool.slug}`}
-                      className="flex items-center justify-between px-3 py-2 text-[13px] text-ink-secondary hover:bg-ground-muted hover:text-ink transition-colors duration-[160ms]"
-                    >
-                      <span className="truncate">{tool.title}</span>
-                      <span className="ml-2 shrink-0 text-[11px] font-mono text-ink-secondary opacity-60">{tool.searchVolume}</span>
-                    </Link>
-                  ))}
-                  <div className="border-t border-rule mt-1 pt-1">
-                    <Link
-                      href="/tools"
-                      className="block px-3 py-2 text-[13px] font-semibold text-accent hover:bg-ground-muted transition-colors duration-[160ms]"
-                    >
-                      View all {TOOLS.length} tools →
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {[
-              { href: '/integrations', label: 'Integrations', badge: `${INTEGRATIONS.length}` },
-              { href: '/compare/twilio', label: 'Compare', badge: null },
-              { href: '/#pricing', label: 'Pricing', badge: null },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-ground-muted hover:text-ink transition-[background,color] duration-[160ms] ease-out focus-visible:outline-accent focus-visible:outline-2"
+            {resourcesOpen && (
+              <div
+                className="absolute right-0 top-full mt-1 w-56 rounded-md border py-1 z-50"
+                style={{
+                  background: 'var(--theme-surface)',
+                  borderColor: 'var(--theme-border)',
+                  boxShadow: 'var(--theme-shadow)',
+                }}
               >
-                {link.label}
-                {link.badge && (
-                  <span className="font-mono text-[11px] text-ink-secondary bg-ground-muted border border-rule px-1.5 py-0.5 rounded-full">
-                    {link.badge}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </nav>
-        </div>
+                {RESOURCE_LINKS.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    className="block px-4 py-2 text-sm transition-colors hover:bg-[var(--theme-hover)]"
+                    style={{ color: 'var(--theme-text-secondary)' }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </nav>
 
-        {/* Right side actions */}
-        <div className="flex items-center gap-3">
+        <div className="hidden xl:flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+            aria-pressed={dark}
+            onClick={toggleTheme}
+            className="rounded-md p-2 transition-colors hover:bg-[var(--theme-hover)]"
+            style={linkStyle}
+          >
+            <MoonIcon className="w-4.5 h-4.5" />
+          </button>
           <Link
             href="/dashboard"
-            className="hidden sm:inline-flex items-center px-3 py-2 rounded-md text-sm font-semibold text-ink-secondary hover:bg-ground-muted hover:text-ink transition-[background,color] duration-[160ms] ease-out focus-visible:outline-accent focus-visible:outline-2"
+            className="px-3 py-2 text-sm font-normal transition-colors hover:bg-[var(--theme-hover)] rounded-md"
+            style={linkStyle}
           >
             Dashboard
           </Link>
-          <Link href="/dashboard" className="dp-btn-primary text-sm whitespace-nowrap">
-            Get Free API Key
+          <Link
+            href="/dashboard"
+            className="cta-btn"
+            style={{ fontSize: '0.95rem', padding: '10px 22px' }}
+          >
+            Test the Pre-Dial Gate
           </Link>
         </div>
+
+        <div className="flex xl:hidden items-center gap-1">
+          <button
+            type="button"
+            aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={toggleTheme}
+            className="rounded-md p-2"
+            style={linkStyle}
+          >
+            <MoonIcon />
+          </button>
+          <button
+            type="button"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setMenuOpen((v) => !v)}
+            className="rounded-md p-2"
+            style={{ color: 'var(--theme-text-primary)' }}
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d={menuOpen ? 'M6 6l12 12M18 6 6 18' : 'M4 7h16M4 12h16M4 17h16'}
+              />
+            </svg>
+          </button>
+        </div>
       </div>
+
+      {menuOpen && (
+        <div
+          id="mobile-nav"
+          className="xl:hidden border-t"
+          style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
+        >
+          <div className="container py-4 flex flex-col gap-1">
+            {[...NAV_LINKS, ...RESOURCE_LINKS].map((l) => (
+              <Link
+                key={l.href + l.label}
+                href={l.href}
+                onClick={() => setMenuOpen(false)}
+                className="px-3 py-2 rounded-md text-sm transition-colors hover:bg-[var(--theme-hover)]"
+                style={{ color: 'var(--theme-text-secondary)' }}
+              >
+                {l.label}
+              </Link>
+            ))}
+            <Link
+              href="/dashboard"
+              onClick={() => setMenuOpen(false)}
+              className="cta-btn mt-2"
+              style={{ fontSize: '0.95rem' }}
+            >
+              Test the Pre-Dial Gate
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { INTEGRATIONS } from '../../lib/integrations/catalog-100';
 
 export const metadata = {
-  title: '100+ Integrations Catalog | VerifyOne',
+  title: 'Integrations Catalog',
   description: 'Connect VerifyOne validation to HubSpot, Salesforce, Zapier, Make, n8n, Google Sheets, and 100+ platforms with no code.',
+  alternates: { canonical: 'https://app.verifyone.io/integrations' },
 };
 
 export default function IntegrationsPage() {

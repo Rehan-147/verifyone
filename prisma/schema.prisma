@@ -12,7 +12,8 @@ model User {
   email            String         @unique
   name             String?
   credits          Int            @default(1000)
-  plan             String         @default("STARTER")
+  plan             String         @default("FREE")
+  dodoCustomerId   String?
   stripeCustomerId String?
   apiKeys          ApiKey[]
   checks           CheckHistory[]
@@ -45,4 +46,24 @@ model CreditLedger {
   amount    Int
   reason    String
   createdAt DateTime @default(now())
+}
+
+// Pre-Dial Gate audit trail — the tamper-evident log agencies show their lawyers.
+// Localhost MVP persists JSONL (.data/audit.jsonl); prod uses this table.
+model GateAudit {
+  id            String   @id @default(cuid())
+  evidenceId    String   @unique
+  callerKeyHash String
+  phoneHash     String
+  channel       String
+  decision      String
+  reason        String
+  checks        Json
+  consent       Json?
+  prevHash      String
+  recordHash    String
+  createdAt     DateTime @default(now())
+
+  @@index([phoneHash, createdAt])
+  @@index([decision, createdAt])
 }

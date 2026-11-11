@@ -1,0 +1,17 @@
+{
+  "757913d8da5a796cdf5e3deb1e69c7bb6777965674e74f3c46089d63adbc0708": {
+    "keyHash": "757913d8da5a796cdf5e3deb1e69c7bb6777965674e74f3c46089d63adbc0708",
+    "email": "burn-test-2@localhost.dev",
+    "plan": "FREE",
+    "credits": 0,
+    "createdAt": "2026-11-10T07:27:11.120Z"
+  },
+  "2b9305c4d00c6998362aaaf61838a46db1c93fea7cfdd6a752b4d11e1afe009e": {
+    "keyHash": "2b9305c4d00c6998362aaaf61838a46db1c93fea7cfdd6a752b4d11e1afe009e",
+    "email": "positive-control@localhost.dev",
+    "plan": "FREE",
+    "credits": 998,
+    "createdAt": "2026-11-10T07:28:59.395Z",
+    "lastUsedAt": "2026-11-10T07:29:00.123Z"
+  }
+}

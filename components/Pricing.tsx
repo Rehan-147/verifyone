@@ -1,103 +1,97 @@
-const plans = [
-  {
-    name: 'Starter',
-    price: 149,
-    credits: '30,000',
-    features: ['Phone + Email + IP', 'Bulk CSV (5k rows)', 'API access', '7-day free trial', 'Credits roll over 3 months'],
-    highlight: false,
-    cta: 'Start free trial',
-  },
-  {
-    name: 'Growth',
-    price: 449,
-    credits: '120,000',
-    features: ['Everything in Starter', 'HLR lookups', 'DNC scrub', 'Priority support', 'Zapier / Make / n8n'],
-    highlight: true,
-    cta: 'Start free trial',
-  },
-  {
-    name: 'Pro',
-    price: 999,
-    credits: '400,000',
-    features: ['Everything in Growth', 'MCP AI agent endpoint', 'HubSpot native integration', 'Dedicated SLA', 'Custom credits'],
-    highlight: false,
-    cta: 'Contact sales',
-  },
-];
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { PLANS, PLAN_ORDER } from '../lib/plans';
 
 export default function Pricing() {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const startCheckout = async (planKey: string) => {
+    const email = window.prompt('Work email for Dodo checkout:', '');
+    if (!email) return;
+    setBusy(planKey); setNotice(null);
+    try {
+      const r = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, plan: planKey }),
+      });
+      const d = await r.json();
+      if (d.checkout_url) { window.location.href = d.checkout_url; return; }
+      setNotice(d.message || d.detail || d.error || 'Checkout unavailable — configure Dodo in .env');
+    } catch {
+      setNotice('Checkout unavailable');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
-    <section id="pricing" className="bg-ground-muted py-24 px-4 border-t border-b border-rule">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-14">
-          <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent bg-accent/10 border border-accent/20 rounded-full mb-3">
-            Transparent Pricing
-          </span>
+    <section id="pricing" className="bg-ground py-24 px-4 border-t border-rule scroll-mt-20">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-14">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-ink font-display tracking-tight mb-3">
-            Simple, usage-based pricing
+            Pricing that scales with your gate checks
           </h2>
-          <p className="text-ink-secondary text-base">
-            No contracts. Universal credits roll over 3 months. 7-day free trial on every plan.
+          <p className="text-ink-secondary max-w-2xl mx-auto leading-relaxed">
+            Billed via <strong className="text-ink">Dodo Payments</strong> (merchant of record).
+            Credits vary by enabled checks — at launch, the full pre-dial gate is bundled:{' '}
+            <strong className="text-ink">one bundled credit per pre-dial check</strong>.
           </p>
         </div>
-
+        {notice && <p className="text-center text-sm text-amber-700 mb-6">{notice}</p>}
         <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative rounded-panel p-8 flex flex-col transition-all duration-160 ease-out ${
-                plan.highlight
-                  ? 'bg-panel border-2 border-accent shadow-lg shadow-accent/5'
-                  : 'bg-panel border border-rule shadow-sm'
-              }`}
-            >
-              {plan.highlight && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent text-white text-xs font-bold px-4 py-1 shadow-sm">
-                  Most Popular
-                </span>
-              )}
-
-              <p className="text-xs font-bold text-ink-secondary uppercase tracking-wider mb-2">
-                {plan.name}
-              </p>
-              <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-4xl font-extrabold text-ink font-display tracking-tight">${plan.price}</span>
-                <span className="text-ink-secondary text-sm">/month</span>
+          {PLAN_ORDER.map((key) => {
+            const plan = PLANS[key];
+            const highlight = key === 'GROWTH';
+            return (
+              <div key={key} className={`dp-card p-8 flex flex-col ${highlight ? 'ring-2 ring-accent' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-xl text-ink font-display">{plan.name}</h3>
+                  {highlight && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+                      Most picked
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-ink-secondary mt-1">{plan.blurb}</p>
+                <p className="text-3xl font-extrabold text-ink mt-4">
+                  ${plan.priceUsd}
+                  <span className="text-base font-normal text-ink-secondary">/month</span>
+                </p>
+                <p className="text-sm text-accent font-semibold mt-1 font-mono">
+                  {plan.credits.toLocaleString('en-US')} credits/mo
+                </p>
+                <ul className="mt-6 space-y-2 text-sm text-ink-secondary flex-1">
+                  {plan.features.map((f) => (<li key={f}>✓ {f}</li>))}
+                </ul>
+                <button
+                  type="button"
+                  disabled={busy === key}
+                  onClick={() => startCheckout(key)}
+                  className={`mt-8 w-full py-3 rounded-lg font-semibold text-sm ${highlight ? 'dp-btn-primary' : 'border border-rule bg-panel text-ink hover:bg-ground-muted'}`}
+                >
+                  {busy === key ? 'Opening Dodo…' : 'Subscribe'}
+                </button>
               </div>
-              <p className="text-accent text-sm font-semibold mb-6">
-                {plan.credits} credits / month
-              </p>
-
-              <div className="h-px bg-rule w-full mb-6" />
-
-              <ul className="space-y-3 mb-8 flex-1">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                    <svg className="w-4 h-4 text-accent shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <a
-                href="/dashboard"
-                className={`block text-center rounded-lg py-3 font-semibold text-sm transition-all duration-160 ${
-                  plan.highlight
-                    ? 'dp-btn-primary'
-                    : 'dp-btn-secondary'
-                }`}
-              >
-                {plan.cta}
-              </a>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <p className="text-center text-ink-secondary text-xs mt-10">
-          All plans include phone + email + IP validation. 1 credit = 1 core check. HLR = 5 credits. DNC = 10 credits.
-        </p>
+        {/* Credit + trial notes */}
+        <div className="mt-10 text-center space-y-2">
+          <p className="text-sm text-ink-secondary">
+            Credits roll over for 3 months. 7-day free trial on every plan.
+          </p>
+          <p className="text-xs text-ink-secondary/80">
+            How credits work:{' '}
+            <Link href="/pricing#credits" className="text-accent font-semibold hover:underline">
+              credit costs &amp; calculator →
+            </Link>
+          </p>
+        </div>
       </div>
     </section>
   );

@@ -12,11 +12,11 @@ function HeroDiagram() {
     <div className="relative w-full max-w-sm mx-auto select-none" aria-hidden="true">
       <svg viewBox="0 0 320 280" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
         {/* Connector lines */}
-        <line x1="96" y1="52"  x2="160" y2="140" stroke="#dde0e6" strokeWidth="1.5" strokeDasharray="4 3" />
-        <line x1="160" y1="52"  x2="160" y2="140" stroke="#dde0e6" strokeWidth="1.5" strokeDasharray="4 3" />
-        <line x1="224" y1="52"  x2="160" y2="140" stroke="#dde0e6" strokeWidth="1.5" strokeDasharray="4 3" />
-        <line x1="96" y1="228" x2="160" y2="140" stroke="#dde0e6" strokeWidth="1.5" strokeDasharray="4 3" />
-        <line x1="224" y1="228" x2="160" y2="140" stroke="#dde0e6" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1="96" y1="52"  x2="160" y2="140" stroke="#d4d4d4" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1="160" y1="52"  x2="160" y2="140" stroke="#d4d4d4" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1="224" y1="52"  x2="160" y2="140" stroke="#d4d4d4" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1="96" y1="228" x2="160" y2="140" stroke="#d4d4d4" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1="224" y1="228" x2="160" y2="140" stroke="#d4d4d4" strokeWidth="1.5" strokeDasharray="4 3" />
 
         {/* Input tiles – top row */}
         {[
@@ -25,9 +25,9 @@ function HeroDiagram() {
           { x: 192, y: 16, label: 'IP' },
         ].map(({ x, y, label }) => (
           <g key={label} transform={`translate(${x},${y})`}>
-            <rect width="64" height="36" rx="8" fill="white" stroke="#dde0e6" strokeWidth="1" />
-            <text x="32" y="14" textAnchor="middle" fill="#454c58" fontSize="9" fontFamily="Instrument Sans, sans-serif" fontWeight="600" dy="0.35em">{label}</text>
-            <text x="32" y="26" textAnchor="middle" fill="#074ce0" fontSize="7" fontFamily="Instrument Sans, sans-serif" dy="0.35em">lookup</text>
+            <rect width="64" height="36" rx="8" fill="white" stroke="#d4d4d4" strokeWidth="1" />
+            <text x="32" y="14" textAnchor="middle" fill="#474747" fontSize="9" fontFamily="IBM Plex Sans, sans-serif" fontWeight="600" dy="0.35em">{label}</text>
+            <text x="32" y="26" textAnchor="middle" fill="#0074e2" fontSize="7" fontFamily="IBM Plex Sans, sans-serif" dy="0.35em">lookup</text>
           </g>
         ))}
 
@@ -36,17 +36,17 @@ function HeroDiagram() {
           {/* glow ring */}
           <circle cx="40" cy="40" r="46" fill="rgba(7,76,224,0.06)" />
           {/* outer ring */}
-          <circle cx="40" cy="40" r="40" fill="white" stroke="#dde0e6" strokeWidth="1.5" />
+          <circle cx="40" cy="40" r="40" fill="white" stroke="#d4d4d4" strokeWidth="1.5" />
           {/* blue filled center */}
-          <circle cx="40" cy="40" r="30" fill="#074ce0" />
+          <circle cx="40" cy="40" r="30" fill="#0074e2" />
           {/* diagonal sheen */}
           <circle cx="40" cy="40" r="30" fill="url(#hubGrad)" opacity="0.3" />
           <text x="40" y="37" textAnchor="middle" fill="white" fontSize="9" fontFamily="Host Grotesk, sans-serif" fontWeight="700" dy="0.35em">Verify</text>
-          <text x="40" y="49" textAnchor="middle" fill="rgba(255,255,255,0.75)" fontSize="8" fontFamily="Instrument Sans, sans-serif" dy="0.35em">One</text>
+          <text x="40" y="49" textAnchor="middle" fill="rgba(255,255,255,0.75)" fontSize="8" fontFamily="IBM Plex Sans, sans-serif" dy="0.35em">One</text>
           <defs>
             <radialGradient id="hubGrad" cx="35%" cy="35%">
               <stop offset="0%" stopColor="white" />
-              <stop offset="100%" stopColor="#074ce0" />
+              <stop offset="100%" stopColor="#0074e2" />
             </radialGradient>
           </defs>
         </g>
@@ -57,9 +57,9 @@ function HeroDiagram() {
           { x: 192, y: 216, label: 'Carrier',    sub: 'T-Mobile' },
         ].map(({ x, y, label, sub }) => (
           <g key={label} transform={`translate(${x},${y})`}>
-            <rect width="64" height="36" rx="8" fill="white" stroke="#dde0e6" strokeWidth="1" />
-            <text x="32" y="14" textAnchor="middle" fill="#454c58" fontSize="9" fontFamily="Instrument Sans, sans-serif" fontWeight="600" dy="0.35em">{label}</text>
-            <text x="32" y="26" textAnchor="middle" fill="#074ce0" fontSize="8" fontFamily="Instrument Sans, sans-serif" fontWeight="700" dy="0.35em">{sub}</text>
+            <rect width="64" height="36" rx="8" fill="white" stroke="#d4d4d4" strokeWidth="1" />
+            <text x="32" y="14" textAnchor="middle" fill="#474747" fontSize="9" fontFamily="IBM Plex Sans, sans-serif" fontWeight="600" dy="0.35em">{label}</text>
+            <text x="32" y="26" textAnchor="middle" fill="#0074e2" fontSize="8" fontFamily="IBM Plex Sans, sans-serif" fontWeight="700" dy="0.35em">{sub}</text>
           </g>
         ))}
       </svg>

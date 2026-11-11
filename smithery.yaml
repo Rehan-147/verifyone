@@ -1,0 +1,36 @@
+# MCP server submission pack — VerifyOne
+# Smithery config (https://smithery.ai) — used by the registry to index the server.
+# Also fill the same info on mcp.so, PulseMCP (pulse.mcp.com), Glama, Cursor directory.
+
+name: verifyone
+displayName: VerifyOne — Pre-Dial Compliance Gate for AI Voice Agents
+description: >
+  One MCP tool call before every AI-dialed call or AI-sent email: TCPA litigator
+  lists, federal DNC, FCC reassigned-number (RNDB), the AI-voice consent rule
+  (AI voice = prior express written consent), disconnected detection and legal
+  calling hours in the called party's timezone. Returns ALLOW, REVIEW (route
+  to a human — e.g. cert unverifiable, reassigned check unavailable) or DENY,
+  plus a sealed, hash-chained audit record (evidence_id) that stands up in a
+  client dispute or regulatory inquiry. Optional TrustedForm consent-certificate
+  verification. Native webhooks for Vapi (pre-connect) and Retell (pre-call).
+version: 1.1.0
+homepage: https://app.verifyone.io
+documentation: https://app.verifyone.io/for-agents
+license: proprietary
+tools:
+  - check_call_allowed
+  - check_email_safety
+  - validate_phone
+  - verify_email
+  - ip_lookup
+  - bulk_verify
+  - get_account
+transports:
+  - type: http
+    url: https://app.verifyone.io/api/mcp
+security:
+  # keys stored hashed; audit trail tamper-evident; no raw PII persisted
+  data_retention: metadata-only audit records (phone numbers stored as salted hash)
+pricing:
+  free_tier: 500 gate checks/month, no card
+  paid_from: $299/month (Starter) · $899 Growth · $2,399 Pro; live HLR+RNDB profile = 5 credits/check; TrustedForm verification = +1 credit
