@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  name             String?
+  credits          Int            @default(1000)
+  plan             String         @default("FREE")
+  dodoCustomerId   String?
+  stripeCustomerId String?
+  apiKeys          ApiKey[]
+  checks           CheckHistory[]
+  createdAt        DateTime       @default(now())
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
+  lastUsedAt DateTime?
+}
+
+model CheckHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String
+  input       String
+  result      Json
+  creditsUsed Int
+  createdAt   DateTime @default(now())
+}
+
+model CreditLedger {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+// Pre-Dial Gate audit trail — the tamper-evident log agencies show their lawyers.
+// Localhost MVP persists JSONL (.data/audit.jsonl); prod uses this table.
+model GateAudit {
+  id            String   @id @default(cuid())
+  evidenceId    String   @unique
+  seq           BigInt   @unique
+  callerKeyHash String
+  phoneMasked   String
+  phoneHash     String
+  channel       String
+  decision      String
+  reason        String
+  checks        Json
+  consent       Json?
+  prevHash      String
+  recordHash    String
+  recordJson    String
+  createdAt     DateTime @default(now())
+
+  @@index([phoneHash, createdAt])
+  @@index([decision, createdAt])
+}
+
+model ChainTail {
+  id        Int      @id @default(1)
+  recordHash String
+  seq       BigInt
+  updatedAt DateTime @updatedAt
+}
+
+model PlatformCredential {
+  id          String   @id @default(cuid())
+  ownerKey    String
+  platform    String
+  encryptedKey String
+  keyLast4    String
+  defaults    Json
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([ownerKey, platform])
+}
+
+model DialIdempotency {
+  id               String   @id @default(cuid())
+  ownerKey         String
+  idempotencyKey   String
+  requestHash      String
+  state            String   @default("in_progress")
+  responseStatus   Int?
+  response         Json?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+
+  @@unique([ownerKey, idempotencyKey])
+  @@index([expiresAt])
+}
