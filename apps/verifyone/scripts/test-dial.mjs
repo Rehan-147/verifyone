@@ -49,6 +49,17 @@ for (const platform of ['vapi', 'retell']) {
     ? { assistant_id: 'asst_mock', phone_number_id: 'pn_mock' }
     : { agent_id: 'agent_mock', from_number: '+14155550100' };
   const credentialUrl = `${base}/api/v1/platforms/${platform}/credentials`;
+  const expectedPhone = allowedPhone || '+12125551000';
+  const formattedPhone = expectedPhone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '+1 ($1) $2-$3');
+  const callBody = { phone: formattedPhone, consent: { declared: true, type: 'express_written' }, debug_now: debugNow };
+  const idempotency = `allow-${platform}-${Date.now()}`;
+  const callsBeforeConfig = (await platformCalls(platform)).length;
+  const missingDefaults = await fetch(`${base}/api/v1/dial/${platform}`, {
+    method: 'POST', headers: { ...headers, 'Idempotency-Key': idempotency }, body: JSON.stringify(callBody),
+  });
+  const missingDefaultsBody = await json(missingDefaults);
+  check(`${platform} missing defaults rejected without platform call`, missingDefaults.status === 400 && missingDefaultsBody.error === 'platform_configuration_required' && (await platformCalls(platform)).length === callsBeforeConfig);
+
   const stored = await fetch(credentialUrl, {
     method: 'PUT', headers, body: JSON.stringify({ api_key: fakeKey, defaults }),
   });
@@ -72,15 +83,16 @@ for (const platform of ['vapi', 'retell']) {
     check(`${platform} ALLOW dial placed once`, false, 'no ALLOW candidate found');
     continue;
   }
-  const callBody = { phone: allowedPhone, consent: { declared: true, type: 'express_written' }, debug_now: debugNow, [platform]: defaults };
-  const idempotency = `allow-${platform}-${Date.now()}`;
   const callsBefore = (await platformCalls(platform)).length;
   const first = await fetch(`${base}/api/v1/dial/${platform}`, {
     method: 'POST', headers: { ...headers, 'Idempotency-Key': idempotency }, body: JSON.stringify(callBody),
   });
   const firstBody = await json(first);
-  const afterFirst = (await platformCalls(platform)).length;
-  check(`${platform} ALLOW dial placed once`, first.status === 200 && firstBody.dialed === true && afterFirst === callsBefore + 1);
+  const callsAfterFirst = await platformCalls(platform);
+  const afterFirst = callsAfterFirst.length;
+  const sentNumber = platform === 'vapi' ? callsAfterFirst.at(-1)?.body?.customer?.number : callsAfterFirst.at(-1)?.body?.to_number;
+  check(`${platform} same-key retry dials after defaults are added`, first.status === 200 && firstBody.dialed === true && afterFirst === callsBefore + 1);
+  check(`${platform} formatted number is normalized before dialing`, sentNumber === expectedPhone, `sent=${sentNumber}`);
 
   const balanceAfterFirst = await balance(key);
   const replay = await fetch(`${base}/api/v1/dial/${platform}`, {
@@ -98,7 +110,7 @@ for (const platform of ['vapi', 'retell']) {
 
   const removed = await fetch(credentialUrl, { method: 'DELETE', headers: { Authorization: `Bearer ${key}` } });
   const disconnected = await fetch(`${base}/api/v1/dial/${platform}`, {
-    method: 'POST', headers: { ...headers, 'Idempotency-Key': `disconnected-${platform}-${Date.now()}` }, body: JSON.stringify(callBody),
+    method: 'POST', headers: { ...headers, 'Idempotency-Key': `disconnected-${platform}-${Date.now()}` }, body: JSON.stringify({ ...callBody, [platform]: defaults }),
   });
   const disconnectedBody = await json(disconnected);
   check(`${platform} deleted credential blocks dialing`, removed.ok && disconnected.status === 400 && disconnectedBody.error === 'platform_not_connected');

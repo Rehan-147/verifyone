@@ -200,3 +200,19 @@ export async function completeDialIdempotency(ownerKey: string, idempotencyKey: 
     await saveFile();
   });
 }
+
+export async function releaseDialIdempotency(ownerKey: string, idempotencyKey: string) {
+  persistenceGuard();
+  if (dbEnabled()) {
+    await prisma.dialIdempotency.deleteMany({
+      where: { ownerKey, idempotencyKey, state: 'in_progress' },
+    });
+    return;
+  }
+  await serialize(async () => {
+    await loadFile();
+    memory.idempotency = memory.idempotency.filter((x) =>
+      x.ownerKey !== ownerKey || x.idempotencyKey !== idempotencyKey || x.state !== 'in_progress');
+    await saveFile();
+  });
+}

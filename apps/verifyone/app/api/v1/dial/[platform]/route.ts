@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate, creditsAvailable, meter, rateLimit } from '@/lib/auth';
-import { sealEvidence } from '@/lib/audit-store';
+import { normalizePhone, sealEvidence } from '@/lib/audit-store';
 import { gateBundleCredits, resolveGateProfile } from '@/lib/credits';
 import { runPhoneGateDecision } from '@/lib/gate-service';
-import { completeDialIdempotency, claimDialIdempotency, getPlatformCredential, ownerKeyFor, type CredentialDefaults, type VoicePlatform } from '@/lib/platform-credentials';
+import { completeDialIdempotency, claimDialIdempotency, getPlatformCredential, ownerKeyFor, releaseDialIdempotency, type CredentialDefaults, type VoicePlatform } from '@/lib/platform-credentials';
 
 export const runtime = 'nodejs';
 type Params = { params: { platform: string } };
@@ -42,43 +42,50 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (idempotencyKey.length > 200 || /[^\x21-\x7e]/.test(idempotencyKey)) return jsonError('invalid_idempotency_key', 400);
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   if (!body || typeof body.phone !== 'string' || !body.phone.trim()) return jsonError('phone_required', 400);
+  const phone = normalizePhone(body.phone);
+  if (!/^\+[1-9]\d{6,14}$/.test(phone)) return jsonError('invalid_phone', 400);
 
   const ownerKey = ownerKeyFor(acc);
-  const requestHash = crypto.createHash('sha256').update(`${platform}:${stable(body)}`).digest('hex');
+  const rl = rateLimit(`dial:${ownerKey}`, 60, 60_000);
+  if (!rl.ok) return jsonError('rate_limited', 429);
+  const normalizedBody = { ...body, phone };
+  const requestHash = crypto.createHash('sha256').update(`${platform}:${stable(normalizedBody)}`).digest('hex');
   let claim;
   try { claim = await claimDialIdempotency(ownerKey, idempotencyKey, requestHash); }
   catch (err) { return jsonError(err instanceof Error && err.message === 'persistence_unavailable' ? 'persistence_unavailable' : 'persistence_unavailable', 503); }
   if (claim.kind === 'replay') return NextResponse.json(claim.response, { status: claim.status });
   if (claim.kind === 'conflict') return jsonError('idempotency_conflict', 409);
   if (claim.kind === 'in_progress') return jsonError('idempotency_in_progress', 409);
-  const finish = async (status: number, response: Record<string, unknown>) => {
-    await completeDialIdempotency(ownerKey, idempotencyKey, requestHash, status, response);
-    return NextResponse.json(response, { status });
+  const releaseAndError = async (error: string, status: number) => {
+    try { await releaseDialIdempotency(ownerKey, idempotencyKey); }
+    catch { return jsonError('persistence_unavailable', 503); }
+    return jsonError(error, status);
   };
 
-  const rl = rateLimit(`dial:${ownerKey}`, 60, 60_000);
-  if (!rl.ok) return finish(429, { error: 'rate_limited' });
   const platformBody = body[platform] && typeof body[platform] === 'object' ? body[platform] as Record<string, unknown> : {};
-  const credentialDefaults = safeDefaults(platform, (await getPlatformCredential(ownerKey, platform).catch(() => null))?.defaults);
+  let savedCredential;
+  try { savedCredential = await getPlatformCredential(ownerKey, platform); }
+  catch (err) { return releaseAndError(err instanceof Error && err.message === 'credentials_key_missing' ? 'credentials_key_missing' : 'persistence_unavailable', 503); }
+  const credentialDefaults = safeDefaults(platform, savedCredential?.defaults);
   const defaults = { ...credentialDefaults, ...safeDefaults(platform, platformBody) };
   const required = platform === 'vapi' ? ['assistant_id', 'phone_number_id'] : ['from_number'];
-  for (const name of required) if (!defaults[name]) return finish(400, { error: 'platform_configuration_required' });
+  for (const name of required) if (!defaults[name]) return releaseAndError('platform_configuration_required', 400);
 
   const consent = body.consent && typeof body.consent === 'object' ? body.consent as Record<string, unknown> : {};
   const profile = resolveGateProfile(body as { profile?: string; live_hlr?: boolean });
   const cost = gateBundleCredits(profile, { trustedform: typeof consent.trustedform_cert_url === 'string' });
-  if (!creditsAvailable(acc, cost)) return finish(402, { error: 'insufficient_credits' });
+  if (!creditsAvailable(acc, cost)) return releaseAndError('insufficient_credits', 402);
   let credential;
   try { credential = await getPlatformCredential(ownerKey, platform, true); }
-  catch (err) { return finish(503, { error: err instanceof Error && err.message === 'credentials_key_missing' ? 'credentials_key_missing' : 'persistence_unavailable' }); }
-  if (!credential) return finish(400, { error: 'platform_not_connected' });
+  catch (err) { return releaseAndError(err instanceof Error && err.message === 'credentials_key_missing' ? 'credentials_key_missing' : 'persistence_unavailable', 503); }
+  if (!credential) return releaseAndError('platform_not_connected', 400);
 
-  const gateBody = { ...body, mode: 'fail_closed' };
+  const gateBody = { ...body, phone, mode: 'fail_closed' };
   const result = await runPhoneGateDecision(gateBody, profile, profile === 'full_stack' ? 800 : 95);
   let gateEvidenceId: string;
   try {
     const sealed = await sealEvidence({
-      phone: body.phone,
+      phone,
       channel: 'voice',
       consent: body.consent ?? { declared: false, type: 'none' },
       decision: result.decision,
@@ -88,11 +95,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
     gateEvidenceId = sealed.evidence.evidence_id;
   } catch {
-    return finish(503, { error: 'persistence_unavailable' });
+    return releaseAndError('persistence_unavailable', 503);
   }
   if (!unavailableReasons.has(result.reason)) {
-    const debit = await meter(acc, cost, `/api/v1/dial/${platform}:${profile}`);
-    if (!debit.metered) return finish(402, { error: 'insufficient_credits' });
+    let debit;
+    try { debit = await meter(acc, cost, `/api/v1/dial/${platform}:${profile}`); }
+    catch { return releaseAndError('persistence_unavailable', 503); }
+    if (!debit.metered) return releaseAndError('insufficient_credits', 402);
     if (debit.race) console.warn('[billing] credit debit race after dial gate decision', { email: acc.email, cost });
   }
 
@@ -107,8 +116,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   const vapi = platform === 'vapi';
   const endpoint = vapi ? `${platformBase(platform)}/call` : `${platformBase(platform)}/v2/create-phone-call`;
   const callBody = vapi
-    ? { assistantId: defaults.assistant_id, phoneNumberId: defaults.phone_number_id, customer: { number: body.phone } }
-    : { from_number: defaults.from_number, to_number: body.phone, ...(defaults.agent_id ? { override_agent_id: defaults.agent_id } : {}) };
+    ? { assistantId: defaults.assistant_id, phoneNumberId: defaults.phone_number_id, customer: { number: phone } }
+    : { from_number: defaults.from_number, to_number: phone, ...(defaults.agent_id ? { override_agent_id: defaults.agent_id } : {}) };
   let status = 502;
   let callId: string | undefined;
   let platformStatus: number | undefined;
@@ -137,7 +146,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch { /* Never expose provider errors or key-bearing bodies. */ }
 
   const dialEvidence = await sealEvidence({
-    phone: body.phone,
+    phone,
     channel: 'voice',
     consent: body.consent ?? { declared: false, type: 'none' },
     decision: dialReason === 'dial_placed' ? 'allow' : 'block',
