@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { hasKeyHeader, authenticate, clientIp } from '../../../lib/auth';
 // MCP Server for AI Agents - Claude / Cursor / Codex
 // URL: https://app.verifyone.io/api/mcp   (localhost dev: http://localhost:3000/api/mcp)

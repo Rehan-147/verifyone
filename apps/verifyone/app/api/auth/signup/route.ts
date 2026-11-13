@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // POST /api/auth/signup { email } -> { api_key } (shown once, stored hashed)
 // MVP: no password yet. Prod: email OTP verification before key issuance.
 import { NextRequest, NextResponse } from 'next/server';

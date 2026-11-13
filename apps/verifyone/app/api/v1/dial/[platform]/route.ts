@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate, creditsAvailable, meter, rateLimit } from '@/lib/auth';

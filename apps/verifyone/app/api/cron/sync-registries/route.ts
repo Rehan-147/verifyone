@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { persistRegistryMeta } from '../../../../lib/compliance-cache';
 import { evaluateShieldReadiness } from '../../../../lib/compliance-policy';

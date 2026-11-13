@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { listRunnableBulkJobs, purgeExpiredBulkJobs } from '@/lib/bulk-store';
 import { processBulkChunk } from '@/lib/bulk-worker';

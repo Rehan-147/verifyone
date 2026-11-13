@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // POST /api/integrations/{provider} — generic field-normalizing gate endpoint.
 // Customers can call it from their own HTTP workflows; this is not a vendor-specific
 // connector, Zapier app, or pre-built automation for every catalogued platform.

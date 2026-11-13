@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // LEAD-INTAKE CONSENT CAPTURE — closes the front half of the consent loop.
 //
 // Marketing dials start at the FORM, not at the dialer. This endpoint is the

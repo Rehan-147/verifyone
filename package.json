@@ -10,6 +10,7 @@
     "start": "npm run start --workspace=verifyone",
     "lint": "npm run lint --workspace=verifyone",
     "db:push": "npm run db:push --workspace=verifyone",
-    "typecheck": "npm exec --workspace=verifyone -- tsc --noEmit"
+    "typecheck": "npm exec --workspace=verifyone -- tsc --noEmit",
+    "test:ci": "node apps/verifyone/scripts/ci-run-tests.mjs"
   }
 }

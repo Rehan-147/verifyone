@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // SINGLE-EVIDENCE EXPORT — the record you hand a client, auditor, or regulator.
 // Bulk CSV of the ledger already exists at /api/v1/gate/audit/export (paid).
 // This produces the polished artifact for ONE decision:

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // POST-CALL OUTCOME — closes the compliance loop.
 // An AI agent reports what happened on the call it was allowed to place
 // (answered / booked / opt-out …). The outcome is sealed into the same

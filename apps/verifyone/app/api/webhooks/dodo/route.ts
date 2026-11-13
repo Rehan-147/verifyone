@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // POST /api/webhooks/dodo — signature-verified (Standard Webhooks scheme).
 // Grants plan credits on: payment.succeeded, subscription.active, subscription.renewed.
 // Downgrades on subscription.cancelled / subscription.expired.

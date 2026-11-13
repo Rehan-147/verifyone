@@ -12,7 +12,7 @@ For the step-by-step deploy see [`../DEPLOY.md`](../DEPLOY.md).
 
 Set these in **Vercel → Settings → Environment Variables** for *Production* and
 *Preview*, then redeploy. Redeploying is required — `process.env` is read at boot, and
-several GET routes are baked at build time.
+API routes are evaluated dynamically at request time.
 
 ## Core
 
@@ -117,9 +117,6 @@ Crons live in `vercel.json`: `digest` weekly (`0 13 * * 1`), `sync-registries` w
 | Key | Read at | Required for | Without it |
 |---|---|---|---|
 | `DATABASE_URL` | `lib/db.ts` | Prisma/Postgres as the store for keys, accounts, audit | `dbEnabled()` is false → falls back to `.data/keys.json`, `.data/audit.jsonl`, `.data/usage.json` |
-| `NEXT_PUBLIC_SUPABASE_URL` | `lib/supabase/client.ts` | browser-side Supabase client | Supabase-backed paths inactive |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `lib/supabase/client.ts` | as above | as above |
-| `SUPABASE_SERVICE_ROLE_KEY` | `lib/supabase/client.ts` | server-side writes bypassing RLS | — **never** expose as a `NEXT_PUBLIC_*` var |
 
 The `.data/*` fallback is intentional and fine for local dev and early demos. Before
 scaling or going live: set `DATABASE_URL`, run `npm run db:push`, and re-issue keys —
@@ -284,3 +281,28 @@ The gate response carries an `evidence_id`; the sealed record is public at
 `GET /api/v1/gate/audit/{evidence_id}`. Bulk CSV export at
 `GET /api/v1/gate/audit/export` requires a Bearer key **and** a paid plan
 (`FREE` → `403 export_requires_paid_plan`).
+
+## CI/CD
+
+Branch → pull request → all CI jobs green → merge → Vercel production deploy.
+CI validates Prisma, generates the client, typechecks, builds without a database,
+and runs the API regression suites in both file mode and a fresh Postgres 16 database.
+
+Vercel settings:
+- Root Directory: `apps/verifyone`.
+- Build Command: `npm run vercel-build`.
+- Production environment: `DATABASE_URL` (pooled runtime connection), `DIRECT_URL`
+  (direct migration connection), `APP_URL`, `VERIFYONE_CREDENTIALS_KEY`, and the
+  billing, registry, audit signing and vendor keys documented above for enabled features.
+- Vercel supplies `VERCEL_ENV`. Only `production` with a nonempty `DIRECT_URL`
+  runs `prisma migrate deploy`. Missing either prints a skip message.
+- Previews must use a separate non-production database or none. Never assign
+  production database credentials to previews. Previews never run migrations;
+  provision their schema separately against their own database.
+
+Create schema changes locally with `npm run db:migrate:dev --workspace=verifyone -- --name x`.
+Review and commit the generated SQL. Production uses `prisma migrate deploy`;
+never use `db push` in production (`db:push` is for local prototyping only).
+For an existing populated database, verify its schema matches the baseline and
+mark `0001_baseline` applied with `prisma migrate resolve --applied 0001_baseline`
+before the first deploy; do not apply baseline CREATE statements to existing tables.

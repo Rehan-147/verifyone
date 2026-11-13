@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // ACCOUNT USAGE — the "no surprises" endpoint (cost predictability contract).
 // GET /api/v1/account/usage
 //   -> plan, exact live credit balance, meters, and the honest zero-balance behavior.

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // POST /api/billing/checkout { email, plan: STARTER|GROWTH|PRO }
 // -> { checkout_url } (Dodo Payments, merchant of record)
 import { NextRequest, NextResponse } from 'next/server';

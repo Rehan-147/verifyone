@@ -31,3 +31,5 @@ yarn-error.log*
 /apps/verifyone/.data/*
 !/apps/verifyone/.data/.gitkeep
 !/apps/verifyone/.data/REGISTRIES.md
+# Disposable CI app copies
+/.ci-run-*/

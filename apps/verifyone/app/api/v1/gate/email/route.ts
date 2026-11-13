@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // PRE-SEND GATE for AI SDRs — check before the agent hits send.
 // POST /api/v1/gate/email { email }
 import { NextRequest, NextResponse } from 'next/server';

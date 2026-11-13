@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // Retell inbound call screening. Outbound dialing uses REST gate-then-dial.
 import { NextRequest, NextResponse } from 'next/server';
 import { runInboundScreen } from '../../../../lib/gate';

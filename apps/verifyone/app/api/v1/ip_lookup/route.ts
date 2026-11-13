@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { upstreamIP } from '../../../../lib/upstream';
 import { costFor } from '../../../../lib/credits';

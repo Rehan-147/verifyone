@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // GET /api/v1/gate/ticket/{ticket_id} — poll an async gate ticket
 import { NextRequest, NextResponse } from 'next/server';
 import { loadTicket, getEvidence } from '../../../../../../lib/audit-store';

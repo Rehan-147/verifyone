@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // CLAY HTTP-API COLUMN ENDPOINT
 // Clay's "HTTP API" enrichment column POSTs a JSON body per row and maps any
 // flat JSON response. This endpoint accepts whatever your Clay body sends and

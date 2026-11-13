@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate, creditsAvailable, rateLimit } from '@/lib/auth';
 import { ownerKeyFor } from '@/lib/platform-credentials';

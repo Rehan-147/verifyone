@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req:NextRequest){
   const {user_id, url, events} = await req.json()

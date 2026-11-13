@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate, hasKeyHeader } from '../../../../../../lib/auth';
 import { auditsToCsv, listAuditsForExport } from '../../../../../../lib/audit-db';

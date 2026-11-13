@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // Sealed audit record retrieval — "the log your lawyer can read".
 // GET  /api/v1/gate/audit/{evidence_id}  -> one sealed record
 // GET  /api/v1/gate/audit?verify=chain   -> verify the entire hash chain

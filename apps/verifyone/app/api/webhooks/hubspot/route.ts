@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // POST /api/webhooks/hubspot — HubSpot contact webhooks -> Pre-Dial Gate -> property write-back.
 //
 // HubSpot delivers an array of subscription events containing only an objectId, so the route

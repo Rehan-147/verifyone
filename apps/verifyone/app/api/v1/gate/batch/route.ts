@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // POST /api/v1/gate/batch — LIST PRE-FLIGHT: scrub a whole campaign list before it runs.
 // Zero per-call latency for the agent: one batch call upstream, agent dials a pre-cleaned list.
 // Body: { items: [{id?, phone}, ...], consent?, channel?, mode? }

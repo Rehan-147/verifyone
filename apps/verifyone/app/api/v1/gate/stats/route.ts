@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // GET /api/v1/gate/stats?days=7 — the ROI proof: what the gate blocked and what it saved.
 // Wire this into a dashboard widget, cron digest, or customer success email.
 import { NextRequest, NextResponse } from 'next/server';

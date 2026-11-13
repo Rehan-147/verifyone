@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate } from '@/lib/auth';
 import { deletePlatformCredential, getPlatformCredential, ownerKeyFor, putPlatformCredential, type CredentialDefaults, type VoicePlatform } from '@/lib/platform-credentials';

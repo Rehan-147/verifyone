@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // CRON: weekly ROI digest. Vercel Cron / GitHub Actions / cron-job.org hits this
 // with header `x-cron-secret: $CRON_SECRET`; it computes the week's gate stats and
 // POSTs a human-readable digest to DIGEST_WEBHOOK_URL (Slack/Discord/Make-compatible).

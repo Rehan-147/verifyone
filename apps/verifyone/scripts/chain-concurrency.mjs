@@ -19,7 +19,7 @@ const arg = (name, dflt) => {
   const i = process.argv.indexOf('--' + name);
   return i === -1 ? dflt : process.argv[i + 1];
 };
-const BASE = (process.env.BASE || arg('base', 'http://127.0.0.1:3000')).replace(/\/$/, '');
+const BASE = (process.env.BASE_URL || process.env.BASE || arg('base', 'http://127.0.0.1:3000')).replace(/\/$/, '');
 const DB_MODE = process.argv.includes('--db') || process.env.DB_MODE === '1';
 const N = Number(process.env.N || arg('n', DB_MODE ? 200 : 40));
 const KEY = process.env.VERIFYONE_API_KEY || arg('key', '');
@@ -66,7 +66,7 @@ if (DB_MODE) {
     const growth = afterChain.records - beforeRecords;
     console.log('Postgres records after burst: ' + afterChain.records);
     console.log('DB chain verification: ' + JSON.stringify(afterChain));
-    if (afterChain.ok === true && growth === N) ok(`DB chain valid; record count increased by ${growth}`);
+    if (afterResponse.ok && (afterChain.ok === true || afterChain.valid === true) && growth === N) ok(`DB chain valid; record count increased by ${growth}`);
     else bad(`expected ok=true and exactly ${N} new records; got ok=${afterChain.ok}, growth=${growth}`);
   } catch (error) {
     bad('DB concurrency run failed: ' + error.message);
@@ -146,7 +146,7 @@ async function verifyNewLabel(label) {
 const p = await burstParallel();
 const idsP = new Set(p.res.map((r) => r.evidence_id).filter(Boolean));
 console.log('\n== ' + N + ' concurrent POST /api/v1/gate/phone  (' + p.ms + 'ms)');
-if (idsP.size === p.res.filter((r) => r.evidence_id).length && idsP.size > 1) ok('every call sealed its own evidence_id');
+if (idsP.size === p.res.filter((r) => r.evidence_id).length && idsP.size === N) ok('every call sealed its own evidence_id');
 else bad('duplicate or missing evidence_ids across concurrent calls');
 await new Promise((r) => setTimeout(r, 400)); // let stragglers finish their appends
 await verifyNewLabel('parallel seals');
@@ -165,6 +165,7 @@ await verifyNewLabel('batch seals');
 const chain = await fetch(BASE + '/api/v1/gate/audit/chain').then((r) => r.json());
 console.log('\n== GET /api/v1/gate/audit/chain');
 console.log('  ' + JSON.stringify(chain));
+if (!(chain.ok === true || chain.valid === true) || chain.records !== startIndex + N + Math.min(N, 200)) bad('verify endpoint must report valid and exact record growth');
 console.log('  (this route halts at the first defect, so a pre-existing break below row ' + startIndex + ' still shows here)');
 
 console.log('\n' + (failures === 0 ? 'chain held under concurrency' : failures + ' check(s) failed'));

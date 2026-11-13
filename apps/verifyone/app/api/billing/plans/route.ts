@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { PLANS, PLAN_ORDER } from '../../../../lib/plans';
 import { dodoConfigured } from '../../../../lib/dodo';

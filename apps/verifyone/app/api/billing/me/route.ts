@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // GET /api/billing/me (Authorization: Bearer vk_live_...) -> account status
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate, hasKeyHeader } from '../../../../lib/auth';

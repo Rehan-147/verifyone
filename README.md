@@ -22,3 +22,11 @@ npm run dev
 The app runs at `http://localhost:3000`. Its local environment template is [`apps/verifyone/.env.example`](apps/verifyone/.env.example). Configure local values in `apps/verifyone/.env` or `.env.local`; keep secrets out of Git.
 
 See the [VerifyOne product and development guide](apps/verifyone/README.md) and [deployment guide](apps/verifyone/DEPLOY.md).
+CI badge placeholder: add the repository's GitHub Actions CI badge here.
+
+Run CI locally (Node 20):
+```bash
+npm ci
+npm run typecheck
+npm run test:ci
+```

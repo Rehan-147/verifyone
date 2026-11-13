@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // PRE-DIAL GATE — the one call an AI dialer makes before every call.
 // POST /api/v1/gate/phone { phone, channel?, consent?, profile? }
 // -> { decision: ALLOW|DENY, reason, evidence_id, ... }
