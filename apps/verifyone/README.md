@@ -135,6 +135,7 @@ beta; their outbound APIs are not gated natively by VerifyOne.
 ## 7. Right now — Next Tasks (priority order)
 
 **Done since the 2026-11 audit:**
+- **P3.1 — paid bulk list audit**: CSV/JSON upload, per-row outbound gate evidence, leased chunk worker, CSV results, printable risk report, owner-only readback, expiry purge cron, and credit metering
 - Pricing ladder rebuilt to margin math: **Starter $299 · Growth $899 · Pro $2,399** (≈60% gross margin at every tier; Dodo dashboard must be synced to these before live checkout)
 - `full_stack` rebalanced to **5 credits/check** (+ TrustedForm verification = +1 credit add-on) — premium vendor fees no longer absorb into plans
 - `review` decision live end-to-end (gate → contract → platform response; outbound Vapi/Retell callers must stop unless `ALLOW`)

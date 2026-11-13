@@ -106,3 +106,46 @@ model DialIdempotency {
   @@unique([ownerKey, idempotencyKey])
   @@index([expiresAt])
 }
+
+model BulkJob {
+  id            String     @id
+  ownerKey      String
+  status        String
+  profile       String
+  totalRows     Int
+  uniqueRows    Int
+  processedRows Int        @default(0)
+  invalidRows   Int        @default(0)
+  duplicateRows Int        @default(0)
+  creditsCharged Int       @default(0)
+  columns       Json
+  dataSourceSnapshot Json?
+  simulatedData Boolean  @default(false)
+  leaseUntil    DateTime?
+  leaseToken    String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  expiresAt     DateTime
+  rows          BulkRow[]
+
+  @@index([ownerKey, createdAt])
+  @@index([status, createdAt])
+  @@index([expiresAt])
+}
+
+model BulkRow {
+  id         String   @id @default(cuid())
+  jobId      String
+  rowIndex   Int
+  original   Json
+  phone      String?
+  status     String
+  decision   String?
+  reason     String?
+  riskScore  Int?
+  evidenceId String?
+  job        BulkJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, status])
+  @@unique([jobId, rowIndex])
+}
