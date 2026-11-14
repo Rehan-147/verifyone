@@ -66,7 +66,7 @@ try {
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   if (!ready) throw new Error('Readiness timed out after 180 seconds');
-  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-bulk', 'chain-concurrency']) {
+  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-calling-hours', 'test-bulk', 'chain-concurrency']) {
     const started = Date.now();
     const child = start([path.join(app, 'scripts', suite + '.mjs')], env, sandbox);
     const code = await new Promise(resolve => { child.once('exit', code => resolve(code ?? 1)); child.once('error', () => resolve(1)); });

@@ -61,7 +61,7 @@ const RISK_CATEGORIES = [
   ['ai_voice_consent_missing', new Set(['ai_voice_consent_required'])],
   ['reassigned', new Set(['reassigned_number_consent_required'])],
   ['disconnected', new Set(['disconnected'])],
-  ['quiet_hours_now', new Set(['quiet_hours'])],
+  ['quiet_hours_now', new Set(['quiet_hours', 'state_quiet_hours'])],
 ] as const;
 
 function percent(count: number, total: number) {
