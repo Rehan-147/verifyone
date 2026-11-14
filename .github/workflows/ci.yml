@@ -1,0 +1,73 @@
+name: CI
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm exec --workspace=verifyone -- prisma validate
+        env:
+          DATABASE_URL: postgresql://verifyone:verifyone@localhost:5432/verifyone
+          DIRECT_URL: postgresql://verifyone:verifyone@localhost:5432/verifyone
+      - run: npm exec --workspace=verifyone -- prisma generate
+      - run: npm run typecheck
+      - run: npm run build --workspace=verifyone
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: '1'
+  test-file-mode:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:ci
+  test-postgres:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: verifyone
+          POSTGRES_PASSWORD: verifyone
+          POSTGRES_DB: verifyone
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://verifyone:verifyone@localhost:5432/verifyone
+      DIRECT_URL: postgresql://verifyone:verifyone@localhost:5432/verifyone
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate:deploy --workspace=verifyone
+      - run: npm run test:ci

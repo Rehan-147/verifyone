@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    container_name: verifyone-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: verifyone
+      POSTGRES_USER: verifyone
+      POSTGRES_PASSWORD: verifyone
+    ports:
+      - '5433:5432'
+    volumes:
+      - verifyone-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U verifyone -d verifyone']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  verifyone-postgres:
