@@ -41,6 +41,11 @@ async function freePort(port) {
   });
 }
 try {
+  const coverageStarted = Date.now();
+  const coverage = start([path.join(app, 'scripts/test-npa-coverage.mjs')], process.env, app);
+  const coverageCode = await new Promise(resolve => { coverage.once('exit', code => resolve(code ?? 1)); coverage.once('error', () => resolve(1)); });
+  results.push({ suite: 'test-npa-coverage', status: coverageCode === 0 ? 'PASS' : 'FAIL', seconds: ((Date.now() - coverageStarted) / 1000).toFixed(1) });
+
   await freePort(3200);
   await freePort(3999);
   // Run a disposable app copy: local credentials, registries, ledgers and Next output stay untouched.
@@ -66,7 +71,7 @@ try {
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   if (!ready) throw new Error('Readiness timed out after 180 seconds');
-  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-bulk', 'chain-concurrency']) {
+  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-calling-hours', 'test-bulk', 'chain-concurrency']) {
     const started = Date.now();
     const child = start([path.join(app, 'scripts', suite + '.mjs')], env, sandbox);
     const code = await new Promise(resolve => { child.once('exit', code => resolve(code ?? 1)); child.once('error', () => resolve(1)); });

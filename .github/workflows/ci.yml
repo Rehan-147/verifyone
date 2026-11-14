@@ -20,6 +20,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: node apps/verifyone/scripts/test-npa-coverage.mjs
       - run: npm exec --workspace=verifyone -- prisma validate
         env:
           DATABASE_URL: postgresql://verifyone:verifyone@localhost:5432/verifyone
