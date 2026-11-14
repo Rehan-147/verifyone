@@ -14,6 +14,8 @@ export type PublicReason =
   | 'CONSENT_CERT_UNVERIFIED'
   | 'RNDB_UNAVAILABLE'
   | 'QUIET_HOURS'
+  | 'STATE_QUIET_HOURS'
+  | 'TIMEZONE_UNKNOWN'
   | 'DISCONNECTED'
   | 'INVALID_NUMBER'
   | 'GATE_UNAVAILABLE' | 'REGISTRY_UNAVAILABLE';
@@ -65,6 +67,10 @@ export function toPublicReason(
       return 'RNDB_UNAVAILABLE';
     case 'quiet_hours':
       return 'QUIET_HOURS';
+    case 'state_quiet_hours':
+      return 'STATE_QUIET_HOURS';
+    case 'timezone_unknown':
+      return 'TIMEZONE_UNKNOWN';
     case 'disconnected':
       return 'DISCONNECTED';
     case 'invalid_number':
