@@ -64,7 +64,7 @@ function HeroDiagram() {
         ))}
       </svg>
       <p className="text-center text-[12px] text-ink-secondary mt-2 font-medium" style={{ fontFamily: 'Instrument Sans, sans-serif' }}>
-        All 74 data products · One API key · One credit balance
+        One API key · One credit balance · Evidence for every decision
       </p>
     </div>
   );
@@ -132,9 +132,9 @@ export default function HeroValidator() {
               style={{ fontFamily: 'Instrument Sans, sans-serif' }}
             >
               {[
-                { n: 'ALLOW / DENY', label: 'gate decision' },
+                { n: 'ALLOW / REVIEW / DENY', label: 'gate decision' },
                 { n: 'SHA-256', label: 'hash-chained evidence' },
-                { n: 'Vapi & Retell', label: 'webhooks' },
+                { n: 'REST · MCP · Batch', label: 'integration paths' },
                 { n: '500/mo', label: 'free checks' },
               ].map(({ n, label }) => (
                 <span key={label} className="flex items-center gap-1.5">

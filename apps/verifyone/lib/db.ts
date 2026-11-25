@@ -8,6 +8,16 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+function txMs(envName: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[envName] || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export const TX_OPTIONS = {
+  maxWait: txMs('PRISMA_TX_MAX_WAIT_MS', 15_000),
+  timeout: txMs('PRISMA_TX_TIMEOUT_MS', 15_000),
+};
+
 export function dbEnabled(): boolean {
   return !!process.env.DATABASE_URL;
 }
