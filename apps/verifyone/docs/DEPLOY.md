@@ -288,6 +288,16 @@ Branch → pull request → all CI jobs green → merge → Vercel production de
 CI validates Prisma, generates the client, typechecks, builds without a database,
 and runs the API regression suites in both file mode and a fresh Postgres 16 database.
 
+Local test database safety rules (`scripts/ci-run-tests.mjs` + `lib/db.ts`):
+- Mode is decided from the caller's environment before any child process loads `.env`:
+  DB mode runs only when `DATABASE_URL` is set in the caller's shell; otherwise file mode
+  sets `VERIFYONE_FORCE_FILE_MODE=1` (ignored when `NODE_ENV=production`) so Prisma's
+  `schemaEnvPath` `.env` auto-loading cannot hijack file-mode tests into a real database.
+- Local tests never touch a remote database unless explicitly allowed: in DB mode,
+  `ci-run-tests.mjs` refuses to start if `DATABASE_URL` or `DIRECT_URL` points to any
+  host other than `localhost`, `127.0.0.1`, or `::1` unless
+  `VERIFYONE_ALLOW_REMOTE_TEST_DB=1` is set explicitly.
+
 Vercel settings:
 - Root Directory: `apps/verifyone`.
 - Build Command: `npm run vercel-build`.

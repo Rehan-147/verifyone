@@ -19,5 +19,7 @@ export const TX_OPTIONS = {
 };
 
 export function dbEnabled(): boolean {
+  // Prevent Prisma's schemaEnvPath (.env) from hijacking file-mode CI/test runs in non-production.
+  if (process.env.VERIFYONE_FORCE_FILE_MODE === '1' && process.env.NODE_ENV !== 'production') return false;
   return !!process.env.DATABASE_URL;
 }
