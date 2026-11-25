@@ -4,127 +4,161 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Security & Trust',
   description:
-    'How VerifyOne handles data: masked storage, tamper-evident evidence records, hashed API keys, access controls, audit logs, subprocessors, and incident response. No certification claims.',
+    'How VerifyOne secures API keys, platform credentials, hash-chained evidence, data minimisation, subprocessors, CI testing, and current certification status.',
   alternates: { canonical: 'https://app.verifyone.io/security' },
 };
 
+const SUBPROCESSORS: { name: string; role: string; status: 'Active' | 'Planned' }[] = [
+  { name: 'Vercel', role: 'Application hosting and edge network', status: 'Active' },
+  { name: 'Supabase', role: 'Managed Postgres database for accounts, bulk jobs, and evidence', status: 'Active' },
+  { name: 'Clerk', role: 'User authentication for the web dashboard', status: 'Active' },
+  { name: 'Telnyx', role: 'Optional live carrier / line-type / HLR lookups (full_stack profile)', status: 'Active' },
+  { name: 'Dodo Payments', role: 'Merchant of record for subscriptions and billing', status: 'Active' },
+  { name: 'Resend', role: 'Transactional email delivery', status: 'Planned' },
+  { name: 'Upstash', role: 'Distributed rate limiting', status: 'Planned' },
+];
+
 const SECTIONS: { id: string; title: string; body: React.ReactNode }[] = [
   {
-    id: 'data-handling',
-    title: 'Data handling approach',
+    id: 'api-keys',
+    title: 'API keys',
     body: (
-      <>
-        <p>
-          VerifyOne is designed to store the minimum needed for a compliance decision. Phone numbers are
-          stored masked (last 4 digits) in evidence records — the full number is never written to the audit
-          log in plaintext. Request context is limited to what the gate needs: number, channel, declared
-          consent, and the checks you enabled.
-        </p>
-        <p>
-          We do not sell contact data, and we do not build marketing profiles from gate requests. Check
-          inputs are used to produce your decision and your evidence record.
-        </p>
-      </>
+      <p>
+        API keys are shown once at creation and stored only as SHA-256 hashes. Requests are authenticated per
+        key with per-key rate limits and monthly quotas. Create separate keys per agent or workflow so you can
+        rotate or revoke independently.
+      </p>
     ),
   },
   {
-    id: 'evidence-retention',
-    title: 'Evidence retention',
+    id: 'platform-credentials',
+    title: 'Platform credentials (dial-through)',
     body: (
-      <>
-        <p>
-          Every gate request writes a tamper-evident, hash-chained record (JSONL, with optional Postgres/
-          Supabase persistence). Records include the masked number, checks performed, decision, reason, and
-          timestamps.
-        </p>
-        <p>
-          Retention is customer-configured within plan limits. CSV export is available on paid plans via{' '}
-          <code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">GET /api/v1/gate/audit/export</code>.
-        </p>
-      </>
+      <p>
+        Third-party voice platform credentials (such as Vapi or Retell keys stored for dial-through) are encrypted
+        at rest with <strong className="text-ink">AES-256-GCM</strong> using an encryption key loaded from the{' '}
+        <code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">VERIFYONE_CREDENTIALS_KEY</code>{' '}
+        environment variable. Plaintext credentials are never returned by API responses (only the last 4
+        characters and metadata are exposed).
+      </p>
     ),
   },
   {
-    id: 'access-controls',
-    title: 'Access controls',
+    id: 'evidence',
+    title: 'Evidence integrity',
     body: (
       <>
         <p>
-          API keys are shown once at creation and stored only as SHA-256 hashes. Requests are authenticated
-          per key; per-key rate limits and monthly quotas apply. There are no shared accounts — create one
-          key per agent or workflow so you can rotate independently.
+          Every gate request writes a <strong className="text-ink">SHA-256 hash-chained</strong> evidence record
+          (Postgres with row locking, or local JSONL in single-process dev mode). Each record&apos;s hash links
+          to the previous record, so altering stored decisions breaks chain verification.
         </p>
-      </>
-    ),
-  },
-  {
-    id: 'audit-logs',
-    title: 'Audit logs',
-    body: (
-      <>
         <p>
-          Beyond per-request evidence, the platform keeps operational logs of plan grants, billing events,
-          and data-source refreshes. The evidence chain is verifiable at any time via{' '}
+          Single-record compliance artifacts exported via{' '}
+          <code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">GET /api/v1/gate/audit/&#123;id&#125;/export</code>{' '}
+          are signed with HMAC (<code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">EVIDENCE_EXPORT_SECRET</code>).
+          Chain verification is available at{' '}
           <code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">GET /api/v1/gate/audit/chain</code>.
         </p>
       </>
     ),
   },
   {
-    id: 'subprocessors',
-    title: 'Subprocessors',
+    id: 'data-minimisation',
+    title: 'Data minimisation & retention',
     body: (
       <>
         <p>
-          Gate checks may call these upstream providers when the corresponding feature is enabled on your
-          account:
+          Phone numbers are stored hashed and masked (last 4 digits only) in evidence records — the full number is
+          never written to the audit log in plaintext. We do not sell contact data or build marketing profiles
+          from gate requests.
         </p>
+        <p>
+          Uploaded bulk screening jobs and their row records expire and are purged after{' '}
+          <code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">BULK_RETENTION_DAYS</code>{' '}
+          (default <strong className="text-ink">30 days</strong>). Bulk risk reports contain aggregate counts only
+          and never include phone numbers.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'subprocessors',
+    title: 'Infrastructure & subprocessors',
+    body: (
+      <>
+        <p>
+          The table below lists our infrastructure providers and subprocessors, including services that are
+          planned but not yet active in production:
+        </p>
+        <div className="overflow-x-auto rounded-xl border border-rule my-3">
+          <table className="w-full text-xs">
+            <thead className="bg-ground-muted">
+              <tr>
+                <th className="p-3 text-left font-semibold text-ink-secondary">Provider</th>
+                <th className="p-3 text-left font-semibold text-ink-secondary">Purpose</th>
+                <th className="p-3 text-left font-semibold text-ink-secondary">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-rule">
+              {SUBPROCESSORS.map((sp) => (
+                <tr key={sp.name}>
+                  <td className="p-3 font-semibold text-ink whitespace-nowrap">{sp.name}</td>
+                  <td className="p-3 text-ink-secondary">{sp.role}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    <span className={`font-mono px-2 py-0.5 rounded border ${
+                      sp.status === 'Active'
+                        ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
+                        : 'bg-amber-500/10 text-amber-800 border-amber-500/30'
+                    }`}>
+                      {sp.status.toLowerCase()}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p>
+          See <Link href="/data-sources" className="text-accent font-semibold hover:underline">/data-sources</Link>{' '}
+          for registry feeds, live connection status, and fail-closed failure behaviour.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'testing',
+    title: 'Testing & CI',
+    body: (
+      <p>
+        Continuous integration runs on every change: TypeScript typecheck (<code className="font-mono text-xs">tsc --noEmit</code>),
+        production Next.js build, and automated integration test suites (including Postgres persistence, quota,
+        credits, calling hours, bulk screening, and hash-chain concurrency).
+      </p>
+    ),
+  },
+  {
+    id: 'not-yet',
+    title: 'What we do not claim yet',
+    body: (
+      <>
         <ul className="list-disc pl-5 space-y-1.5">
-          <li><strong className="text-ink">Telnyx</strong> — carrier / line-type / HLR lookups (optional profile).</li>
-          <li><strong className="text-ink">Reoon or ZeroBounce</strong> — email verification for the pre-send gate (optional).</li>
-          <li><strong className="text-ink">IPinfo</strong> — IP intelligence for the IP lookup endpoint (optional).</li>
-          <li><strong className="text-ink">Dodo Payments</strong> — merchant of record for billing.</li>
-          <li><strong className="text-ink">Supabase</strong> — optional Postgres persistence for accounts and evidence.</li>
-          <li><strong className="text-ink">Vercel</strong> — hosting and edge network.</li>
+          <li>
+            <strong className="text-ink">SOC 2:</strong> Not certified; a security overview is available on request.
+          </li>
+          <li>
+            <strong className="text-ink">Penetration testing:</strong> No third-party penetration test has been completed yet.
+          </li>
+          <li>
+            <strong className="text-ink">Other certifications &amp; SLAs:</strong> We do not claim HIPAA, ISO 27001, GDPR
+            certification, or contractual uptime SLAs.
+          </li>
         </ul>
         <p>
-          Registry files (FTC DNC, litigator feeds, FCC RNDB) are loaded as data files and processed in our
-          own infrastructure. This list will be kept current as providers change.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: 'incident-response',
-    title: 'Incident response',
-    body: (
-      <>
-        <p>
-          Because evidence records are hash-chained, tampering with stored decisions is detectable — chain
-          verification fails loudly. If an incident affects your data or evidence integrity, we will notify
-          affected account contacts directly with what happened, what data was involved, and what we did
-          about it.
-        </p>
-        <p>
-          Report a security issue from your dashboard account or via the design-partner channel. Please do
-          not test against production registries.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: 'compliance-disclaimer',
-    title: 'Compliance disclaimer',
-    body: (
-      <>
-        <p>
-          VerifyOne provides compliance controls and audit evidence. It does not provide legal advice and
-          does not guarantee regulatory outcomes. We make no certification claims — no SOC 2, HIPAA, GDPR
-          certification, or similar attestation is claimed or implied on this page. As we complete formal
-          audits, this page will be updated with verifiable details.
-        </p>
-        <p>
-          See the full <Link href="/legal/compliance-disclaimer" className="text-accent font-semibold hover:underline">compliance disclaimer</Link> and{' '}
+          VerifyOne provides compliance controls and audit evidence. It does not provide legal advice and does not
+          guarantee regulatory outcomes. See the{' '}
+          <Link href="/legal/compliance-disclaimer" className="text-accent font-semibold hover:underline">compliance disclaimer</Link>{' '}
+          and{' '}
           <Link href="/legal/data-processing" className="text-accent font-semibold hover:underline">data processing</Link> pages.
         </p>
       </>
@@ -140,8 +174,8 @@ export default function SecurityPage() {
           Security &amp; trust
         </h1>
         <p className="text-ink-secondary leading-relaxed mb-10">
-          How VerifyOne handles your data, protects your evidence, and stays auditable. Written to be read
-          by your security reviewers, not to impress them.
+          How VerifyOne secures keys, credentials, evidence, and customer data. Only controls verifiable in the
+          running codebase are listed here.
         </p>
         <nav aria-label="Security sections" className="mb-10">
           <ul className="flex flex-wrap gap-2 text-xs font-mono">
@@ -164,7 +198,10 @@ export default function SecurityPage() {
           ))}
         </div>
 
-        <div className="text-center mt-12">
+        <div className="text-center mt-12 flex flex-wrap justify-center gap-4">
+          <Link href="/data-sources" className="dp-btn-secondary inline-flex items-center gap-2">
+            View data sources &amp; failure policy
+          </Link>
           <Link href="/dashboard" className="dp-btn-secondary inline-flex items-center gap-2">
             Review the audit dashboard
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">

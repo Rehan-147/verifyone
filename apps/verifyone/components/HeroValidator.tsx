@@ -132,10 +132,10 @@ export default function HeroValidator() {
               style={{ fontFamily: 'Instrument Sans, sans-serif' }}
             >
               {[
-                { n: '1,200+', label: 'agencies' },
-                { n: '74', label: 'data products' },
-                { n: '99.98%', label: 'uptime' },
-                { n: '7-day', label: 'free trial' },
+                { n: 'ALLOW / DENY', label: 'gate decision' },
+                { n: 'SHA-256', label: 'hash-chained evidence' },
+                { n: 'Vapi & Retell', label: 'webhooks' },
+                { n: '500/mo', label: 'free checks' },
               ].map(({ n, label }) => (
                 <span key={label} className="flex items-center gap-1.5">
                   <span className="font-bold text-ink text-[15px]" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{n}</span>
