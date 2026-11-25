@@ -1,4 +1,4 @@
-import { prisma, dbEnabled } from './db';
+import { prisma, dbEnabled, TX_OPTIONS } from './db';
 
 const GENESIS_HASH = '0'.repeat(64);
 
@@ -39,7 +39,7 @@ export async function sealGateAuditDb(buildRecord: (prevHash: string) => DbEvide
     });
     await tx.chainTail.update({ where: { id: 1 }, data: { recordHash: String(record.record_hash), seq: nextSeq } });
     return record;
-  });
+  }, TX_OPTIONS);
 }
 
 export async function verifyGateAuditDb(rehash: (record: DbEvidenceRecord) => string) {

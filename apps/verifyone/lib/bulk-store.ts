@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import { dbEnabled, prisma } from './db';
+import { dbEnabled, prisma, TX_OPTIONS } from './db';
 import type { DataSourceReceipt } from './data-sources';
 
 export type BulkJobStatus = 'pending' | 'running' | 'paused_insufficient_credits' | 'completed' | 'failed';
@@ -115,7 +115,7 @@ export async function createBulkJob(input: {
         riskScore: row.riskScore ?? null, evidenceId: row.evidenceId ?? null,
       })) });
       return created;
-    });
+    }, TX_OPTIONS);
     const created = await prisma.bulkJob.findUniqueOrThrow({ where: { id: job.id }, include: { rows: { orderBy: { rowIndex: 'asc' } } } });
     return { job: mapDbJob(created), rows: created.rows.map(mapDbRow) };
   }
@@ -196,7 +196,7 @@ export async function updateBulkJobForLease(id: string, token: string, patch: Bu
         await tx.bulkRow.update({ where: { jobId_rowIndex: { jobId: id, rowIndex } }, data });
       }
       return true;
-    });
+    }, TX_OPTIONS);
   }
   return serialize(async () => {
     const snapshot = await readFile(id);

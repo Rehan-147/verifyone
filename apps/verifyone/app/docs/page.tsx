@@ -218,8 +218,10 @@ x-api-key: vk_live_...`}</Code>
             <li><strong className="text-ink">Consent recording</strong> — the gate records the consent you declare per request. It does not validate legal sufficiency.</li>
           </ul>
           <p className="text-sm text-ink-secondary leading-relaxed mt-4">
-            See the live data-source receipts at{' '}
-            <code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">GET /api/v1/registry-health</code>{' '}
+            See the full{' '}
+            <Link href="/data-sources" className="text-accent font-semibold hover:underline">data sources &amp; failure policy</Link>,
+            the live receipts at{' '}
+            <code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">GET /api/v1/registry-health</code>,{' '}
             or the <Link href="/status" className="text-accent font-semibold hover:underline">status page</Link>.
           </p>
 

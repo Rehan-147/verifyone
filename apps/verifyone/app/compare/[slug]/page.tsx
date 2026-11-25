@@ -62,7 +62,7 @@ export default function ComparePage({ params }: { params: { slug: string } }) {
               </tr>
               <tr>
                 <td className="py-4 px-6 text-ink font-medium">Data Scope</td>
-                <td className="py-4 px-6 text-ink font-medium">Phone + Email + IP + Domain (74 Products)</td>
+                <td className="py-4 px-6 text-ink font-medium">Pre-dial phone gate + Email + IP + Domain</td>
                 <td className="py-4 px-6 text-ink-secondary">Single vertical only</td>
               </tr>
               <tr>

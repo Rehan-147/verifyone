@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { prisma, dbEnabled } from './db';
+import { prisma, dbEnabled, TX_OPTIONS } from './db';
 import { PLANS, type PlanName } from './plans';
 
 export function sha256(s: string) {
@@ -79,7 +79,7 @@ export async function dbMeter(acc: DbAccount, cost: number, reason = 'metered') 
     const user = await tx.user.findUniqueOrThrow({ where: { email: acc.email.toLowerCase() }, select: { id: true, credits: true } });
     await tx.creditLedger.create({ data: { userId: user.id, amount: -cost, reason } });
     return { metered: true as const, creditsLeft: user.credits };
-  });
+  }, TX_OPTIONS);
 }
 
 export function dbReady() {

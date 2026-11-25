@@ -95,13 +95,39 @@ check('formula cell is neutralized', resultRows.some((row) => row[notesColumn] =
 const reportResponse = await fetch(`${base}/api/v1/bulk/jobs/${created.job_id}/report`, { headers: { Authorization: `Bearer ${apiKey}` } });
 const report = await readJson(reportResponse);
 check('report totals match job', reportResponse.ok && report.totals?.rows === 60 && report.totals?.unique === summary.unique_rows && report.totals?.invalid === 5 && report.totals?.duplicates === 5 && report.totals?.screened === screened);
+const reasonSum = Object.values(report.value?.by_reason || {}).reduce((sum, n) => sum + n, 0);
+check(
+  'report value block present, counts add up, no dollar exposure field',
+  reportResponse.ok
+    && report.value
+    && report.value.risky_actions_prevented === (summary.summary?.by_decision?.DENY ?? 0)
+    && report.value.held_for_review === (summary.summary?.by_decision?.REVIEW ?? 0)
+    && report.value.evidence_records === screened
+    && reasonSum === screened
+    && report.value.cost_avoided === null
+    && !('estimated_statutory_exposure' in report),
+);
+const costReportResponse = await fetch(`${base}/api/v1/bulk/jobs/${created.job_id}/report?cost_per_call=0.10`, { headers: { Authorization: `Bearer ${apiKey}` } });
+const costReport = await readJson(costReportResponse);
+const expectedAvoided = Math.round((report.value?.risky_actions_prevented ?? 0) * 0.10 * 100) / 100;
+check(
+  'report computes cost_avoided when ?cost_per_call=0.10 is passed',
+  costReportResponse.ok
+    && costReport.value?.cost_avoided?.per_call_usd === 0.1
+    && costReport.value?.cost_avoided?.dial_cost_avoided_usd === expectedAvoided
+    && typeof costReport.value?.cost_avoided?.assumptions === 'string',
+);
+const invalidCostZero = await fetch(`${base}/api/v1/bulk/jobs/${created.job_id}/report?cost_per_call=0`, { headers: { Authorization: `Bearer ${apiKey}` } });
+const invalidCostHigh = await fetch(`${base}/api/v1/bulk/jobs/${created.job_id}/report?cost_per_call=15`, { headers: { Authorization: `Bearer ${apiKey}` } });
+const invalidCostNan = await fetch(`${base}/api/v1/bulk/jobs/${created.job_id}/report?cost_per_call=abc`, { headers: { Authorization: `Bearer ${apiKey}` } });
+check('invalid cost_per_call param returns 400', invalidCostZero.status === 400 && invalidCostHigh.status === 400 && invalidCostNan.status === 400);
 check('completed dev-mock job stores warning and screening snapshot', reportResponse.ok && !!report.data_warning && report.simulated_data === true && JSON.stringify(report.screened_with) === JSON.stringify(report.data_sources));
 const reportAgainResponse = await fetch(`${base}/api/v1/bulk/jobs/${created.job_id}/report`, { headers: { Authorization: `Bearer ${apiKey}` } });
 const reportAgain = await readJson(reportAgainResponse);
 check('stored source snapshot is stable across report reads', reportAgainResponse.ok && JSON.stringify(reportAgain.data_sources) === JSON.stringify(report.data_sources) && JSON.stringify(reportAgain.screened_with) === JSON.stringify(report.screened_with));
 const htmlResponse = await fetch(`${base}/api/v1/bulk/jobs/${created.job_id}/report?format=html`, { headers: { Authorization: `Bearer ${apiKey}` } });
 const html = await htmlResponse.text();
-check('print report has disclaimer and simulated-data banner', htmlResponse.ok && html.includes('Compliance tooling, not legal advice.') && html.includes('Some checks used simulated or unavailable data'));
+check('print report has What VerifyOne did, data-sources link, background note, disclaimer, and simulated-data banner', htmlResponse.ok && html.includes('What VerifyOne did') && html.includes('/data-sources') && html.includes('47 U.S.C.') && html.includes('Compliance tooling, not legal advice.') && html.includes('Some checks used simulated or unavailable data') && !html.includes('Illustrative statutory exposure'));
 check('report does not expose phone numbers', !JSON.stringify(report).includes('+1212555'));
 
 const otherKey = await signup();
