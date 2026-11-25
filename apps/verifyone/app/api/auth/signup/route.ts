@@ -8,6 +8,9 @@ import { createAccount, rateLimit, clientIp } from '@/lib/auth';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'use_dashboard', url: '/sign-up' }, { status: 410 });
+  }
   const ip = clientIp(req);
   const rl = rateLimit('signup:' + ip, 5, 60_000);
   if (!rl.ok) return NextResponse.json({ error: 'rate_limited', retry_after: rl.retryAfter }, { status: 429 });

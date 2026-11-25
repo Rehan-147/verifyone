@@ -52,6 +52,7 @@ function decrypt(encrypted: string) {
 }
 
 export function ownerKeyFor(account: Account): string {
+  if (account.orgId) return `org:${account.orgId}`;
   return `email:${account.email.trim().toLowerCase()}`;
 }
 

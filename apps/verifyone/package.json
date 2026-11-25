@@ -14,12 +14,14 @@
     "vercel-build": "prisma generate && node scripts/vercel-migrate.mjs && next build"
   },
   "dependencies": {
+    "@clerk/nextjs": "5.7.6",
     "@prisma/client": "^5.18.0",
     "@supabase/supabase-js": "^2.118.0",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "stripe": "^16.0.0"
+    "stripe": "^16.0.0",
+    "svix": "2.11.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
