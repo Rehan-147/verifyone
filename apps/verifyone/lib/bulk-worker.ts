@@ -38,7 +38,8 @@ async function processRows(rows: BulkRow[], job: NonNullable<Awaited<ReturnType<
           consent,
           mode: 'fail_closed',
           profile: job.profile,
-        }, job.profile, job.profile === 'full_stack' ? 800 : 95);
+          ownerKey: job.ownerKey,
+        }, job.profile, job.profile === 'full_stack' ? 2000 : 1000);
         const sealed = await sealEvidence({
           phone: row.phone || '',
           channel: 'bulk',

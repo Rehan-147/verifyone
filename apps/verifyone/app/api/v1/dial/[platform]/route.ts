@@ -82,7 +82,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   catch (err) { return releaseAndError(err instanceof Error && err.message === 'credentials_key_missing' ? 'credentials_key_missing' : 'persistence_unavailable', 503); }
   if (!credential) return releaseAndError('platform_not_connected', 400);
 
-  const gateBody = { ...body, phone, mode: 'fail_closed' };
+  const gateBody = { ...body, phone, mode: 'fail_closed', ownerKey };
   const result = await runPhoneGateDecision(gateBody, profile, profile === 'full_stack' ? 800 : 95);
   let gateEvidenceId: string;
   try {

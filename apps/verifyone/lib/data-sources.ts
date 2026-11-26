@@ -15,6 +15,17 @@ export type DataSourceDef = {
 
 export const DATA_SOURCE_CATALOG: DataSourceDef[] = [
   {
+    id: 'internal_dnc',
+    check: 'internal_dnc',
+    vendor: 'Customer internal suppression list',
+    ingest: 'customer',
+    refresh_sla: 'real-time (immediate on opt-out)',
+    what_it_does: 'Checks the caller\'s own organization/account internal Do-Not-Call list before any other compliance check, overriding prior consent.',
+    coverage: 'All authenticated organization and account callers (anonymous free-tier callers have no list).',
+    failure_behavior: 'DB/store read error for an authenticated caller → REVIEW (INTERNAL_DNC_UNAVAILABLE); listed → DENY (INTERNAL_DNC). Never a silent ALLOW.',
+    limitation: 'Customer-maintained via outcome opt-outs, API, lead-intake, and dashboard.',
+  },
+  {
     id: 'ftc_dnc',
     check: 'federal_dnc',
     vendor: 'FTC National Do Not Call Registry',

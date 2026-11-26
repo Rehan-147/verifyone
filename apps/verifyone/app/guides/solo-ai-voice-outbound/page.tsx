@@ -58,13 +58,13 @@ const PLATFORMS: { name: string; pick: string; style: string; gate: string }[] =
     name: 'Vapi',
     pick: 'You are comfortable with light developer work',
     style: 'Dashboard + API assistants; usage-based per-minute pricing',
-    gate: 'Outbound: REST gate, then call on ALLOW. Inbound screening (beta) rejects invalid numbers and flags loaded litigators; no customer block list is wired, and outbound DNC/consent rules do not apply.',
+    gate: 'Outbound: REST gate, then call on ALLOW. Inbound screening (beta) rejects invalid numbers, blocks numbers on your internal suppression list, and flags loaded litigators; outbound DNC/consent rules do not apply.',
   },
   {
     name: 'Retell AI',
     pick: 'You want a polished low-code builder',
     style: 'Visual agent builder with attached numbers; usage-based',
-    gate: 'Outbound: REST gate, then call on ALLOW. Inbound screening (beta) rejects invalid numbers and flags loaded litigators; no customer block list is wired, and outbound DNC/consent rules do not apply.',
+    gate: 'Outbound: REST gate, then call on ALLOW. Inbound screening (beta) rejects invalid numbers, blocks numbers on your internal suppression list, and flags loaded litigators; outbound DNC/consent rules do not apply.',
   },
   {
     name: 'Bland AI',
@@ -212,7 +212,7 @@ export default function SoloAiVoiceOutboundGuide() {
             and features with each vendor directly — platforms change fast, and none of them handle US/Canada
             compliance rules for you. For Vapi and Retell outbound, your workflow calls VerifyOne before
             creating the platform call and proceeds only on ALLOW. Inbound screening is beta: it rejects invalid numbers,
-            flags matches in the loaded litigator list, has no per-account block-list lookup yet, and does not apply outbound
+            flags matches in the loaded litigator list, checks your internal suppression list when authenticated, and does not apply outbound
             DNC/consent rules.
           </p>
         </div>

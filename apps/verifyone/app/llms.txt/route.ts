@@ -33,7 +33,7 @@ Retell outbound: POST /api/v1/gate/phone first; call POST https://api.retellai.c
 Dial-through (VerifyOne places outbound calls) is coming soon.
 Inbound screening webhooks (beta): POST /api/webhooks/vapi?assistant_id=... for Vapi assistant-request;
 POST /api/webhooks/retell for Retell call_inbound. They reject invalid numbers and flag matches in the loaded litigator list;
-per-account block-list lookup is not wired yet, and outbound DNC/consent rules are not applied. These do not gate outbound dials.
+Inbound screening (beta) rejects invalid numbers, blocks numbers on the authenticated caller's internal suppression list, and flags matches in the loaded litigator list; outbound DNC/consent rules are not applied. These do not gate outbound dials.
 Other platforms: integrate via REST, MCP where supported, or a custom function.
 
 ## MCP

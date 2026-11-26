@@ -105,7 +105,7 @@ if decision === "ALLOW":
 else: skip the call and store evidence_id.
 
 Inbound screening webhook (beta): ${BASE}/api/webhooks/vapi?assistant_id=YOUR_ASSISTANT_ID
-Rejects invalid numbers, flags loaded litigators; no per-account block-list lookup yet; no outbound DNC/consent rules.
+Rejects invalid numbers, blocks numbers on your internal suppression list, flags loaded litigators; no outbound DNC/consent rules.
 Dial-through — VerifyOne places the call for you — coming soon.`,
   },
   {
@@ -121,7 +121,7 @@ if decision === "ALLOW":
 else: skip the call and store evidence_id.
 
 Inbound screening webhook (beta): ${BASE}/api/webhooks/retell
-Rejects invalid numbers, flags loaded litigators; no per-account block-list lookup yet; no outbound DNC/consent rules.
+Rejects invalid numbers, blocks numbers on your internal suppression list, flags loaded litigators; no outbound DNC/consent rules.
 Dial-through — VerifyOne places the call for you — coming soon.`,
   },
   {

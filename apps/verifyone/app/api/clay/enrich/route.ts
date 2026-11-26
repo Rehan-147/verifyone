@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runPhoneGate, runEmailGate } from '../../../../lib/gate';
 import { upstreamPhone } from '../../../../lib/upstream';
 import { authenticate, meter, rateLimit, creditsAvailable, hasKeyHeader, clientIp } from '../../../../lib/auth';
+import { ownerKeyFor } from '../../../../lib/platform-credentials';
 import { sealEvidence, checkAndBumpQuota } from '../../../../lib/audit-store';
 import { persistenceUnavailableResponse } from '../../../../lib/persistence-response';
 
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
   let billable = true;
 
   if (phone) {
-    const gate = await runPhoneGate({ phone, channel: 'voice', consent: body?.consent });
+    const gate = await runPhoneGate({ phone, channel: 'voice', consent: body?.consent, ownerKey: acc ? ownerKeyFor(acc) : null });
     if (gate.reason === 'gate_unavailable_fail_closed' || gate.reason === 'fail_open_gate_unavailable') billable = false;
     const detail = await upstreamPhone(phone);
     let evidence;

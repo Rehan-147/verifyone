@@ -36,19 +36,27 @@ function encryptionKey(): Buffer {
   return key;
 }
 
-function encrypt(apiKey: string) {
+export function encryptSecret(plaintext: string) {
   const nonce = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), nonce);
-  const ciphertext = Buffer.concat([cipher.update(apiKey, 'utf8'), cipher.final()]);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   return `v1:${nonce.toString('base64')}:${cipher.getAuthTag().toString('base64')}:${ciphertext.toString('base64')}`;
 }
 
-function decrypt(encrypted: string) {
+export function decryptSecret(encrypted: string) {
   const [, nonceText, tagText, dataText] = encrypted.split(':');
   if (!nonceText || !tagText || !dataText) throw new Error('credentials_unavailable');
   const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(nonceText, 'base64'));
   decipher.setAuthTag(Buffer.from(tagText, 'base64'));
   return Buffer.concat([decipher.update(Buffer.from(dataText, 'base64')), decipher.final()]).toString('utf8');
+}
+
+function encrypt(apiKey: string) {
+  return encryptSecret(apiKey);
+}
+
+function decrypt(encrypted: string) {
+  return decryptSecret(encrypted);
 }
 
 export function ownerKeyFor(account: Account): string {

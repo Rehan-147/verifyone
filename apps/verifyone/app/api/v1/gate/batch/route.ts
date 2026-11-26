@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runPhoneGate } from '../../../../../lib/gate';
 import { sealEvidence, checkAndBumpQuota } from '../../../../../lib/audit-store';
 import { authenticate, meter, rateLimit, creditsAvailable, hasKeyHeader, clientIp } from '../../../../../lib/auth';
+import { ownerKeyFor } from '../../../../../lib/platform-credentials';
 import { gateBundleCredits, resolveGateProfile } from '../../../../../lib/credits';
 import { persistenceUnavailableResponse } from '../../../../../lib/persistence-response';
 
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       const gate = await runPhoneGate({
         phone: item.phone, channel: body.channel === 'sms' ? 'sms' : 'voice',
         consent, mode: body.mode, profile,
+        ownerKey: acc ? ownerKeyFor(acc) : null,
       });
       const { evidence } = await sealEvidence({
         phone: item.phone, channel: body.channel === 'sms' ? 'sms' : 'voice',
