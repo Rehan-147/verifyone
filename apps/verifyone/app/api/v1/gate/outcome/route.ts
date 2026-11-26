@@ -114,7 +114,13 @@ export async function POST(req: NextRequest) {
       });
       suppressed = true;
       suppressionEvidenceId = sup.evidence_id;
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === 'suppression_evidence_pending') {
+        return NextResponse.json(
+          { error: 'suppression_evidence_pending', suppressed: true, evidence_pending: true },
+          { status: 503, headers: CORS },
+        );
+      }
       return persistenceUnavailableResponse(CORS);
     }
   }
@@ -129,9 +135,14 @@ export async function POST(req: NextRequest) {
       reason: outcome,
       evidence_id: evidence.evidence_id,
       linked_gate_evidence: gateEvidenceId || null,
-      suppress_henceforth: isOptOut,
+      suppress_henceforth: isOptOut && !!acc,
       suppressed,
       suppression_evidence_id: suppressionEvidenceId,
+      ...(isOptOut && !acc
+        ? {
+            note: 'Authenticate with an API key to keep an internal do-not-call list; this opt-out was recorded as evidence only.',
+          }
+        : {}),
       persistence,
       audit: {
         chain: 'sha256-hash-chained',

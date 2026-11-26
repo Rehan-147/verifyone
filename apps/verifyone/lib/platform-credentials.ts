@@ -36,7 +36,17 @@ function encryptionKey(): Buffer {
   return key;
 }
 
+let forceEncryptFailureForTest = false;
+export function setForceEncryptFailureForTest(enabled: boolean) {
+  if (process.env.NODE_ENV !== 'production') {
+    forceEncryptFailureForTest = enabled;
+  }
+}
+
 export function encryptSecret(plaintext: string) {
+  if (forceEncryptFailureForTest && process.env.NODE_ENV !== 'production') {
+    throw new Error('credentials_key_missing');
+  }
   const nonce = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), nonce);
   const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);

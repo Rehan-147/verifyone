@@ -231,11 +231,18 @@ export default function OrgSuppressionClient({
             ) : (
               items.map((item) => (
                 <tr key={item.id}>
-                  <td className="p-3 font-mono text-xs text-ink">{item.phoneMasked}</td>
+                  <td className="p-3 font-mono text-xs text-ink">
+                    {item.phoneMasked}
+                    {!item.exportable && (
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-800 border border-amber-500/30">
+                        number not exportable
+                      </span>
+                    )}
+                  </td>
                   <td className="p-3 font-mono text-xs text-ink-secondary">{item.reason}</td>
                   <td className="p-3 font-mono text-xs text-ink-secondary">{item.source}</td>
                   <td className="p-3 text-xs text-ink-secondary">{item.requestedAt.slice(0, 10)}</td>
-                  <td className="p-3 font-mono text-xs text-accent">{item.addEvidenceId}</td>
+                  <td className="p-3 font-mono text-xs text-accent">{item.addEvidenceId ?? 'pending'}</td>
                 </tr>
               ))
             )}

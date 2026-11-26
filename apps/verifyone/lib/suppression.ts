@@ -17,14 +17,14 @@ export type SuppressionRecord = {
   ownerKey: string;
   phoneHash: string;
   phoneMasked: string;
-  phoneEncrypted: string;
+  phoneEncrypted: string | null;
   reason: string;
   source: string;
   requestedAt: string;
   createdAt: string;
   createdBy: string | null;
   sourceEvidenceId: string | null;
-  addEvidenceId: string;
+  addEvidenceId: string | null;
   removedAt: string | null;
   removedBy: string | null;
   removeReason: string | null;
@@ -60,14 +60,14 @@ function mapDbRow(row: {
   ownerKey: string;
   phoneHash: string;
   phoneMasked: string;
-  phoneEncrypted: string;
+  phoneEncrypted: string | null;
   reason: string;
   source: string;
   requestedAt: Date;
   createdAt: Date;
   createdBy: string | null;
   sourceEvidenceId: string | null;
-  addEvidenceId: string;
+  addEvidenceId: string | null;
   removedAt: Date | null;
   removedBy: string | null;
   removeReason: string | null;
@@ -91,6 +91,44 @@ function mapDbRow(row: {
     removeReason: row.removeReason,
     removeEvidenceId: row.removeEvidenceId,
   };
+}
+
+function tryEncryptBestEffort(normalized: string, ownerKey: string): string | null {
+  try {
+    return encryptSecret(normalized);
+  } catch {
+    console.warn('[suppression] phone encryption unavailable; stored masked/hashed only', { ownerKey });
+    return null;
+  }
+}
+
+async function sealSuppressionAddEvidence(input: {
+  normalized: string;
+  ownerKey: string;
+  reason: string;
+  requestedAt: string;
+  source: string;
+  sourceEvidenceId?: string | null;
+}): Promise<string> {
+  try {
+    const { evidence } = await sealEvidence({
+      phone: input.normalized,
+      channel: 'suppression',
+      consent: null,
+      decision: 'block',
+      reason: input.reason,
+      checks: {
+        owner_key: input.ownerKey,
+        requested_at: input.requestedAt,
+        source: input.source,
+        source_evidence_id: input.sourceEvidenceId ?? undefined,
+      },
+      callerKey: input.ownerKey,
+    });
+    return evidence.evidence_id;
+  } catch {
+    throw new Error('suppression_evidence_pending');
+  }
 }
 
 export async function isSuppressed(
@@ -138,102 +176,118 @@ export async function addSuppression(input: {
   const requestedAt = input.requestedAt && !Number.isNaN(input.requestedAt.getTime()) ? input.requestedAt : new Date();
 
   if (dbEnabled()) {
-    const existing = await prisma.suppressionEntry.findFirst({
+    let active = await prisma.suppressionEntry.findFirst({
       where: { ownerKey: input.ownerKey, phoneHash, removedAt: null },
     });
-    if (existing) {
-      const mapped = mapDbRow(existing);
-      return { added: false, already_suppressed: true, entry: mapped, evidence_id: mapped.addEvidenceId };
-    }
+    let added = false;
 
-    const { evidence } = await sealEvidence({
-      phone: normalized,
-      channel: 'suppression',
-      consent: null,
-      decision: 'block',
-      reason: input.reason,
-      checks: {
-        owner_key: input.ownerKey,
-        requested_at: requestedAt.toISOString(),
-        source: input.source,
-        source_evidence_id: input.sourceEvidenceId ?? undefined,
-      },
-      callerKey: input.ownerKey,
-    });
-
-    const encrypted = encryptSecret(normalized);
-    try {
-      const created = await prisma.suppressionEntry.create({
-        data: {
-          ownerKey: input.ownerKey,
-          phoneHash,
-          phoneMasked: maskPhone(normalized),
-          phoneEncrypted: encrypted,
-          reason: input.reason,
-          source: input.source,
-          requestedAt,
-          createdBy: input.createdBy ?? null,
-          sourceEvidenceId: input.sourceEvidenceId ?? null,
-          addEvidenceId: evidence.evidence_id,
-        },
-      });
-      return { added: true, already_suppressed: false, entry: mapDbRow(created), evidence_id: evidence.evidence_id };
-    } catch (error: unknown) {
-      const code = (error as { code?: string } | null)?.code;
-      if (code === 'P2002') {
-        const winner = await prisma.suppressionEntry.findFirstOrThrow({
-          where: { ownerKey: input.ownerKey, phoneHash, removedAt: null },
+    if (!active) {
+      const encrypted = tryEncryptBestEffort(normalized, input.ownerKey);
+      try {
+        active = await prisma.suppressionEntry.create({
+          data: {
+            ownerKey: input.ownerKey,
+            phoneHash,
+            phoneMasked: maskPhone(normalized),
+            phoneEncrypted: encrypted,
+            reason: input.reason,
+            source: input.source,
+            requestedAt,
+            createdBy: input.createdBy ?? null,
+            sourceEvidenceId: input.sourceEvidenceId ?? null,
+            addEvidenceId: null,
+          },
         });
-        const mapped = mapDbRow(winner);
-        return { added: false, already_suppressed: true, entry: mapped, evidence_id: mapped.addEvidenceId };
+        added = true;
+      } catch (error: unknown) {
+        const code = (error as { code?: string } | null)?.code;
+        if (code === 'P2002') {
+          active = await prisma.suppressionEntry.findFirstOrThrow({
+            where: { ownerKey: input.ownerKey, phoneHash, removedAt: null },
+          });
+        } else {
+          throw error;
+        }
       }
-      throw error;
     }
+
+    let evidenceId = active.addEvidenceId;
+    if (!evidenceId) {
+      evidenceId = await sealSuppressionAddEvidence({
+        normalized,
+        ownerKey: input.ownerKey,
+        reason: active.reason,
+        requestedAt: active.requestedAt.toISOString(),
+        source: active.source,
+        sourceEvidenceId: active.sourceEvidenceId,
+      });
+      active = await prisma.suppressionEntry.update({
+        where: { id: active.id },
+        data: { addEvidenceId: evidenceId },
+      });
+    }
+
+    return {
+      added,
+      already_suppressed: !added,
+      entry: mapDbRow(active),
+      evidence_id: evidenceId,
+    };
   }
 
   return serialize(async () => {
     const rows = await readAllFile();
-    const existing = rows.find((r) => r.ownerKey === input.ownerKey && r.phoneHash === phoneHash && r.removedAt === null);
-    if (existing) {
-      return { added: false, already_suppressed: true, entry: existing, evidence_id: existing.addEvidenceId };
+    let idx = rows.findIndex((r) => r.ownerKey === input.ownerKey && r.phoneHash === phoneHash && r.removedAt === null);
+    let added = false;
+
+    if (idx === -1) {
+      const encrypted = tryEncryptBestEffort(normalized, input.ownerKey);
+      const entry: SuppressionRecord = {
+        id: `sup_${crypto.randomBytes(10).toString('hex')}`,
+        ownerKey: input.ownerKey,
+        phoneHash,
+        phoneMasked: maskPhone(normalized),
+        phoneEncrypted: encrypted,
+        reason: input.reason,
+        source: input.source,
+        requestedAt: requestedAt.toISOString(),
+        createdAt: new Date().toISOString(),
+        createdBy: input.createdBy ?? null,
+        sourceEvidenceId: input.sourceEvidenceId ?? null,
+        addEvidenceId: null,
+        removedAt: null,
+        removedBy: null,
+        removeReason: null,
+        removeEvidenceId: null,
+      };
+      rows.push(entry);
+      await writeAllFile(rows);
+      idx = rows.length - 1;
+      added = true;
     }
 
-    const { evidence } = await sealEvidence({
-      phone: normalized,
-      channel: 'suppression',
-      consent: null,
-      decision: 'block',
-      reason: input.reason,
-      checks: {
-        owner_key: input.ownerKey,
-        requested_at: requestedAt.toISOString(),
-        source: input.source,
-        source_evidence_id: input.sourceEvidenceId ?? undefined,
-      },
-      callerKey: input.ownerKey,
-    });
+    let active = rows[idx];
+    let evidenceId = active.addEvidenceId;
+    if (!evidenceId) {
+      evidenceId = await sealSuppressionAddEvidence({
+        normalized,
+        ownerKey: input.ownerKey,
+        reason: active.reason,
+        requestedAt: active.requestedAt,
+        source: active.source,
+        sourceEvidenceId: active.sourceEvidenceId,
+      });
+      active = { ...active, addEvidenceId: evidenceId };
+      rows[idx] = active;
+      await writeAllFile(rows);
+    }
 
-    const entry: SuppressionRecord = {
-      id: `sup_${crypto.randomBytes(10).toString('hex')}`,
-      ownerKey: input.ownerKey,
-      phoneHash,
-      phoneMasked: maskPhone(normalized),
-      phoneEncrypted: encryptSecret(normalized),
-      reason: input.reason,
-      source: input.source,
-      requestedAt: requestedAt.toISOString(),
-      createdAt: new Date().toISOString(),
-      createdBy: input.createdBy ?? null,
-      sourceEvidenceId: input.sourceEvidenceId ?? null,
-      addEvidenceId: evidence.evidence_id,
-      removedAt: null,
-      removedBy: null,
-      removeReason: null,
-      removeEvidenceId: null,
+    return {
+      added,
+      already_suppressed: !added,
+      entry: active,
+      evidence_id: evidenceId,
     };
-    rows.push(entry);
-    await writeAllFile(rows);
-    return { added: true, already_suppressed: false, entry, evidence_id: evidence.evidence_id };
   });
 }
 
@@ -269,6 +323,7 @@ export async function removeSuppression(input: {
       },
       callerKey: input.ownerKey,
     });
+    if (!evidence?.evidence_id) throw new Error('suppression_evidence_pending');
 
     const updated = await prisma.suppressionEntry.update({
       where: { id: existing.id },
@@ -302,6 +357,7 @@ export async function removeSuppression(input: {
       },
       callerKey: input.ownerKey,
     });
+    if (!evidence?.evidence_id) throw new Error('suppression_evidence_pending');
 
     const updated: SuppressionRecord = {
       ...existing,
@@ -316,11 +372,11 @@ export async function removeSuppression(input: {
   });
 }
 
-export type MaskedSuppressionItem = Omit<SuppressionRecord, 'phoneEncrypted'>;
+export type MaskedSuppressionItem = Omit<SuppressionRecord, 'phoneEncrypted'> & { exportable: boolean };
 
 function toMaskedItem(r: SuppressionRecord): MaskedSuppressionItem {
-  const { phoneEncrypted: _omit, ...rest } = r;
-  return rest;
+  const { phoneEncrypted, ...rest } = r;
+  return { ...rest, exportable: Boolean(phoneEncrypted) };
 }
 
 export async function listSuppression(opts: {
@@ -382,10 +438,20 @@ export async function exportSuppressionCsv(ownerKey: string): Promise<string> {
     );
   }
 
-  const header = ['phone', 'reason', 'source', 'requested_at', 'created_at', 'add_evidence_id'].map(encodeCsvCell).join(',');
+  const header = ['phone', 'reason', 'source', 'requested_at', 'created_at', 'add_evidence_id', 'number_unavailable_reason'].map(encodeCsvCell).join(',');
   const lines = rows.map((r) => {
-    const phone = decryptSecret(r.phoneEncrypted);
-    return [phone, r.reason, r.source, r.requestedAt, r.createdAt, r.addEvidenceId].map(encodeCsvCell).join(',');
+    let phone = r.phoneMasked;
+    let unavailableReason = '';
+    if (r.phoneEncrypted) {
+      try {
+        phone = decryptSecret(r.phoneEncrypted);
+      } catch {
+        unavailableReason = 'encryption key unavailable when recorded';
+      }
+    } else {
+      unavailableReason = 'encryption key unavailable when recorded';
+    }
+    return [phone, r.reason, r.source, r.requestedAt, r.createdAt, r.addEvidenceId ?? '', unavailableReason].map(encodeCsvCell).join(',');
   });
   return [header, ...lines].join('\r\n') + '\r\n';
 }

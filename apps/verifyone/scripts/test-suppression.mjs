@@ -149,7 +149,65 @@ check(
   `decision=${vapiRes.headers.get('x-verifyone-decision')}, reason=${vapiRes.headers.get('x-verifyone-reason')}`,
 );
 
-// 8. DB mode only: concurrent double-add -> exactly one active entry
+// 8. Encryption failure is best-effort: opt-out still blocks, evidence exists, export marks number_unavailable
+const encFailPhone = `+1212555${String(3550).padStart(4, '0')}`;
+await fetch(`${base}/api/test/suppression`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'force_encrypt_error', value: true }),
+});
+const encFailOut = await fetch(`${base}/api/v1/gate/outcome`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: encFailPhone, outcome: 'opt_out' }),
+});
+const encFailOutBody = await readJson(encFailOut);
+await fetch(`${base}/api/test/suppression`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'force_encrypt_error', value: false }),
+});
+const encFailGate = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: encFailPhone, consent: { declared: true, type: 'express_written' }, debug_now: daytime }),
+}));
+const encFailEv = await fetch(`${base}/api/v1/gate/audit/${encFailOutBody.suppression_evidence_id}`);
+const exportCsvRes = await fetch(`${base}/api/test/suppression`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'export_csv' }),
+});
+const exportCsv = await exportCsvRes.text();
+check(
+  'encrypt failure still suppresses, seals evidence, and export marks number_unavailable_reason',
+  encFailOut.ok
+    && encFailOutBody.suppressed === true
+    && !!encFailOutBody.suppression_evidence_id
+    && encFailGate.decision === 'DENY'
+    && encFailGate.reason === 'INTERNAL_DNC'
+    && encFailEv.status === 200
+    && exportCsv.includes('number_unavailable_reason')
+    && exportCsv.includes('encryption key unavailable when recorded'),
+);
+
+// 9. Anonymous outcome opt_out -> suppressed false, suppress_henceforth false, note present
+const anonOutRes = await fetch(`${base}/api/v1/gate/outcome`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: `+1212555${String(3560).padStart(4, '0')}`, outcome: 'opt_out' }),
+});
+const anonOut = await readJson(anonOutRes);
+check(
+  'anonymous outcome opt_out returns suppressed:false and suppress_henceforth:false',
+  anonOutRes.status === 201
+    && anonOut.suppressed === false
+    && anonOut.suppress_henceforth === false
+    && typeof anonOut.note === 'string'
+    && anonOut.note.includes('API key'),
+);
+
+// 10. DB mode only: concurrent double-add & missing addEvidenceId backfill
 if (dbMode) {
   const racePhone = `+1212555${String(3600).padStart(4, '0')}`;
   const [r1, r2] = await Promise.all([
@@ -170,6 +228,24 @@ if (dbMode) {
   check(
     'DB concurrent double-add produces exactly one active entry',
     (r1.added + r2.added) === 1 && (r1.already_suppressed + r2.already_suppressed) === 1 && (listAfter.items?.length ?? 0) === 1,
+  );
+
+  // Clear addEvidenceId -> re-add backfills it
+  await fetch(`${base}/api/test/suppression`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'clear_add_evidence', phone: racePhone }),
+  });
+  const backfillRes = await readJson(await fetch(`${base}/api/v1/suppression`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phones: [racePhone], reason: 'manual' }),
+  }));
+  const backfilledId = backfillRes.results?.[0]?.evidence_id;
+  const backfillEv = backfilledId ? await fetch(`${base}/api/v1/gate/audit/${backfilledId}`) : null;
+  check(
+    're-adding entry with null addEvidenceId backfills sealed evidence',
+    backfillRes.already_suppressed === 1 && !!backfilledId && backfillEv?.status === 200,
   );
 }
 

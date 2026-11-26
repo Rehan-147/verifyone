@@ -184,7 +184,13 @@ export async function POST(req: NextRequest) {
       });
       suppressed = true;
       suppressionEvidenceId = sup.evidence_id;
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === 'suppression_evidence_pending') {
+        return NextResponse.json(
+          { error: 'suppression_evidence_pending', suppressed: true, evidence_pending: true },
+          { status: 503, headers: CORS },
+        );
+      }
       return persistenceUnavailableResponse(CORS);
     }
   }

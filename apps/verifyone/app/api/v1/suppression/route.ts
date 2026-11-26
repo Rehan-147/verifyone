@@ -108,6 +108,9 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ added, already_suppressed: alreadySuppressed, invalid, results }, { status: 201 });
   } catch (err) {
+    if (err instanceof Error && err.message === 'suppression_evidence_pending') {
+      return NextResponse.json({ error: 'suppression_evidence_pending', suppressed: true, evidence_pending: true }, { status: 503 });
+    }
     if (err instanceof Error && err.message === 'credentials_key_missing') {
       return NextResponse.json({ error: 'credentials_key_missing' }, { status: 503 });
     }

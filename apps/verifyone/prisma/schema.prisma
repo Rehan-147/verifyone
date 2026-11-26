@@ -183,14 +183,14 @@ model SuppressionEntry {
   ownerKey         String
   phoneHash        String
   phoneMasked      String
-  phoneEncrypted   String
+  phoneEncrypted   String?
   reason           String
   source           String
   requestedAt      DateTime  @default(now())
   createdAt        DateTime  @default(now())
   createdBy        String?
   sourceEvidenceId String?
-  addEvidenceId    String
+  addEvidenceId    String?
   removedAt        DateTime?
   removedBy        String?
   removeReason     String?
