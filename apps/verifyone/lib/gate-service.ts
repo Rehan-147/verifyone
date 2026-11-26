@@ -8,6 +8,7 @@ export type PhoneGateBody = Record<string, unknown> & {
   debug_now?: string;
   mode?: string;
   channel?: string;
+  ownerKey?: string | null;
 };
 
 /** Shared decision runner; preserves the phone route's existing timeout fallback contract. */
@@ -21,6 +22,7 @@ export async function runPhoneGateDecision(body: PhoneGateBody, profile: string,
       debug_now: body.debug_now,
       profile: profile as 'ai_outbound_shield' | 'full_stack',
       live_hlr: body.live_hlr === true,
+      ownerKey: body.ownerKey ?? null,
     }),
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error('gate_timeout')), timeoutMs)),
   ]).catch(() => {

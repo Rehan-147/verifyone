@@ -108,7 +108,7 @@ Post: HubSpot contact webhook writes verifyone_status/reason/evidence_id back
 | Litigator scrub | **shell** | feed vendor (Blacklist Alliance / DNC.com / RealValidation) → `LITIGATOR_REGISTRY_URL` | `.data/litigators.txt` currently empty — set must be populated |
 | Reassigned (RNDB) | **live (adapter)** | `RNDB_API_KEY`+`RNDB_API_URL`, or `TWILIO_ACCOUNT_SID`+`TWILIO_AUTH_TOKEN` (Lookup v2 `reassigned_number` field) | unavailable-on-purpose otherwise; `review` decision covers stale consent |
 | Consent | **declared + cert verify** | `TRUSTEDFORM_API_KEY` (+ optional `TRUSTEDFORM_API_URL`) verified on `full_stack` profile | without key = customer-declared only |
-| Internal suppression | **not wired to gate** | Opt-out outcomes are written to the ledger; no per-account block-list lookup is implemented | add a persistent account-scoped list before claiming or enforcing suppression |
+| Internal suppression | **live** | Opt-outs (`outcome: opt_out`), `/api/v1/suppression`, lead-intake, and `/dashboard/suppression` feed `SuppressionEntry` (`.data/suppression.json` in file mode); gate checks `internal_dnc` first after valid-number | anonymous free-tier callers have no list |
 | State DNC lists | **absent** | phase 2 (vendor bundle or per-state) | |
 
 `/api/v1/registry-health` and `/api/v1/data-sources` expose readiness +
@@ -120,9 +120,9 @@ it is already built (`lib/data-sources.ts`, `lib/compliance-cache.ts`).
 | Platform | Status | Surface |
 |---|---|---|
 | Vapi outbound | **gate-then-dial** | Call `POST /api/v1/gate/phone`; call Vapi `POST /call` only on `ALLOW`. Dial-through is coming soon. |
-| Vapi inbound | **beta** | `assistant-request` rejects invalid numbers and flags loaded litigator matches; per-account block-list lookup is not wired; outbound DNC/consent rules are skipped. |
+| Vapi inbound | **beta** | `assistant-request` rejects invalid numbers, blocks numbers on the authenticated customer's internal suppression list (`blocked_by_customer`), and flags loaded litigator matches; outbound DNC/consent rules are skipped. |
 | Retell outbound | **gate-then-dial** | Call `POST /api/v1/gate/phone`; call `create-phone-call` only on `ALLOW`. Dial-through is coming soon. |
-| Retell inbound | **beta** | `call_inbound` rejects invalid numbers and flags loaded litigator matches; per-account block-list lookup is not wired; outbound DNC/consent rules are skipped. |
+| Retell inbound | **beta** | `call_inbound` rejects invalid numbers, blocks numbers on the authenticated customer's internal suppression list (`blocked_by_customer`), and flags loaded litigator matches; outbound DNC/consent rules are skipped. |
 | MCP server | **implemented** | `POST /api/mcp` — agent-native tool; list on Smithery (`smithery.yaml` exists, submission pending) |
 | HubSpot | **beta** (not verified against a live account) | signed v3 webhook adapter exists in code; live account verification is pending |
 | Clay | **implemented** | `/api/clay/enrich` |

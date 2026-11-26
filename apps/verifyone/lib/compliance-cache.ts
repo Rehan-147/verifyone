@@ -180,6 +180,7 @@ export function buildDataSourceReceipts(opts?: { upstream_live?: boolean; telnyx
   const h = complianceCacheStats();
   const telnyx = !!opts?.telnyx_configured || !!process.env.TELNYX_API_KEY;
   return [
+    { id: 'internal_dnc', vendor: 'Customer internal suppression list', status: 'customer' },
     {
       id: 'ftc_dnc',
       vendor: 'FTC National Do Not Call Registry',

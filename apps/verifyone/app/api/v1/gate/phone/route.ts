@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { runPhoneGateDecision } from '../../../../../lib/gate-service';
 import { sealEvidence, checkAndBumpQuota, saveTicket } from '../../../../../lib/audit-store';
 import { authenticate, meter, rateLimit, creditsAvailable, hasKeyHeader, clientIp } from '../../../../../lib/auth';
+import { ownerKeyFor } from '../../../../../lib/platform-credentials';
 import { formatPublicGateResponse } from '../../../../../lib/gate-contract';
 import { gateBundleCredits, resolveGateProfile } from '../../../../../lib/credits';
 import { evaluateShieldReadiness } from '../../../../../lib/compliance-policy';
@@ -82,7 +83,11 @@ export async function POST(req: NextRequest) {
     usage = { used: quota.used, limit: quota.monthly_limit };
   }
 
-  const result = await runPhoneGateDecision(body, profile, gateTimeoutMs);
+  const result = await runPhoneGateDecision(
+    { ...body, ownerKey: acc ? ownerKeyFor(acc) : null },
+    profile,
+    gateTimeoutMs,
+  );
 
   if (body.async === true) {
     const ticket_id = 'gt_' + crypto.randomUUID().slice(0, 12);

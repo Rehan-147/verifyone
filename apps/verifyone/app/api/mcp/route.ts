@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { hasKeyHeader, authenticate, clientIp } from '../../../lib/auth';
+import { ownerKeyFor } from '../../../lib/platform-credentials';
 // MCP Server for AI Agents - Claude / Cursor / Codex
 // URL: https://app.verifyone.io/api/mcp   (localhost dev: http://localhost:3000/api/mcp)
 // Calls the gate + validators in-process (no HTTP self-fetch, no APP_URL needed).
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
         case 'verifyone_pre_dial_gate': // additive alias — same handler as check_call_allowed
         case 'check_call_allowed': {
           const profile = resolveGateProfile(args)
-          const gate = await runPhoneGate({ phone: args.phone, channel: args.channel === 'sms' ? 'sms' : 'voice', consent: args.consent, profile, live_hlr: args.live_hlr === true })
+          const gate = await runPhoneGate({ phone: args.phone, channel: args.channel === 'sms' ? 'sms' : 'voice', consent: args.consent, profile, live_hlr: args.live_hlr === true, ownerKey: acc ? ownerKeyFor(acc) : null })
           const { evidence } = await sealEvidence({ phone: args.phone, channel: args.channel === 'sms' ? 'sms' : 'voice', consent: args.consent ?? { declared: false, type: 'none' }, decision: gate.decision, reason: gate.reason, checks: gate.checks, callerKey: acc?.email || 'ip:' + clientIp(req) })
           result = formatPublicGateResponse(gate, { evidence_id: evidence.evidence_id, profile, live_hlr: profile === 'full_stack', upstream_live: gate.upstream_live })
           break

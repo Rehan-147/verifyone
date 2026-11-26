@@ -19,7 +19,7 @@ const BENEFITS: { title: string; body: string }[] = [
   },
   {
     title: 'Use MCP, REST, or webhook integration',
-    body: 'Vapi and Retell outbound use a REST gate-then-dial workflow. Their inbound screening (beta) rejects invalid numbers and flags matches in the loaded litigator list; per-account block-list lookup is not wired yet, and outbound DNC/consent rules are not applied. Other workflows can use REST, MCP where supported, or a generic adapter.',
+    body: 'Vapi and Retell outbound use a REST gate-then-dial workflow. Their inbound screening (beta) rejects invalid numbers, blocks numbers on the authenticated caller\'s internal suppression list, and flags matches in the loaded litigator list; outbound DNC/consent rules are not applied. Other workflows can use REST, MCP where supported, or a generic adapter.',
   },
   {
     title: 'Explore white-label pilots',

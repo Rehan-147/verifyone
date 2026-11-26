@@ -28,7 +28,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'Does VerifyOne work with Vapi, Retell, or Bland?',
-    a: 'For Vapi and Retell outbound, call the REST gate and create the platform call only on ALLOW. Inbound screening (beta) rejects invalid numbers and flags matches in the loaded litigator list; per-account block-list lookup is not wired yet, and outbound DNC/consent rules are not applied. Other workflows can use REST, custom functions, or MCP where supported.',
+    a: 'For Vapi and Retell outbound, call the REST gate and create the platform call only on ALLOW. Inbound screening (beta) rejects invalid numbers, blocks numbers on the authenticated caller\'s internal suppression list, and flags matches in the loaded litigator list; outbound DNC/consent rules are not applied. Other workflows can use REST, custom functions, or MCP where supported.',
   },
   {
     q: 'What happens if a data source is unavailable?',

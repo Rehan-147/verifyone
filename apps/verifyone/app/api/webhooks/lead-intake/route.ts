@@ -23,6 +23,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sealEvidence, normalizePhone, maskPhone, checkAndBumpQuota } from '@/lib/audit-store';
 import { authenticate, meter, rateLimit, hasKeyHeader, clientIp } from '@/lib/auth';
 import { persistenceUnavailableResponse } from '@/lib/persistence-response';
+import { ownerKeyFor } from '@/lib/platform-credentials';
+import { addSuppression } from '@/lib/suppression';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -163,6 +165,35 @@ export async function POST(req: NextRequest) {
     return persistenceUnavailableResponse(CORS);
   }
   const { evidence, persistence } = sealed;
+  const optedOut =
+    body.opt_out === true
+    || body.do_not_contact === true
+    || body.suppressed === true
+    || String(body.status || '').toLowerCase() === 'opt_out'
+    || String((body.consent as Record<string, unknown> | undefined)?.type || '').toLowerCase() === 'opt_out';
+  let suppressed = false;
+  let suppressionEvidenceId: string | null = null;
+  if (optedOut && acc && phone) {
+    try {
+      const sup = await addSuppression({
+        ownerKey: ownerKeyFor(acc),
+        phone,
+        reason: 'opt_out',
+        source: 'lead_intake',
+        sourceEvidenceId: evidence.evidence_id,
+      });
+      suppressed = true;
+      suppressionEvidenceId = sup.evidence_id;
+    } catch (err) {
+      if (err instanceof Error && err.message === 'suppression_evidence_pending') {
+        return NextResponse.json(
+          { error: 'suppression_evidence_pending', suppressed: true, evidence_pending: true },
+          { status: 503, headers: CORS },
+        );
+      }
+      return persistenceUnavailableResponse(CORS);
+    }
+  }
   if (acc) {
     const m = await meter(acc, 1, '/api/webhooks/lead-intake:consent_recorded');
     if (m.race) console.warn('[billing] credit debit race after lead intake evidence', { email: acc.email });
@@ -173,6 +204,8 @@ export async function POST(req: NextRequest) {
       decision: 'consent_recorded',
       reason: `consent_claimed_${platform}`,
       evidence_id: evidence.evidence_id,
+      suppressed,
+      suppression_evidence_id: suppressionEvidenceId,
       platform,
       phone_masked: phone ? maskPhone(phone) : undefined,
       email_masked: email ? email.replace(/(.{2}).*(@.*)/, '$1***$2') : undefined,

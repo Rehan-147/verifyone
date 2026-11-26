@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       zero_balance_behavior: {
         verdict: 'fail closed',
         api_endpoints: 'metered endpoints return 402 insufficient_credits',
-        voice_webhooks: 'Vapi/Retell inbound screening uses 1 credit, rejects invalid numbers, flags loaded litigator matches, and skips outbound DNC/consent rules; per-account block-list lookup is not wired. Outbound gate-then-dial workflows must not create a call unless the REST gate returns ALLOW.',
+        voice_webhooks: 'Vapi/Retell inbound screening uses 1 credit, rejects invalid numbers, blocks numbers on your internal suppression list, flags loaded litigator matches, and skips outbound DNC/consent rules. Outbound gate-then-dial workflows must not create a call unless the REST gate returns ALLOW.',
         reup: '/pricing (or POST /api/billing/checkout)',
       },
       balance_ok: creditsAvailable(acc, 1),

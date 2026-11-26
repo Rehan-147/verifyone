@@ -152,7 +152,7 @@ x-api-key: vk_live_...`}</Code>
           <ul className="text-sm text-ink-secondary space-y-2 list-disc pl-5">
             <li><code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">POST /api/v1/gate/batch</code> — pre-screen a list (max 5,000 keyed / 200 keyless).</li>
             <li><code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">POST /api/v1/gate/email</code> — pre-send gate for AI SDRs (send / hold / block).</li>
-            <li><code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">POST /api/v1/gate/phone</code> — call before Vapi or Retell outbound call creation, and proceed only on <code>ALLOW</code>. Inbound screening (beta) rejects invalid numbers and flags matches in the loaded litigator list; per-account block-list lookup is not wired yet, and outbound DNC/consent rules are not applied.</li>
+            <li><code className="font-mono text-xs bg-ground-muted border border-rule px-1.5 py-0.5 rounded">POST /api/v1/gate/phone</code> — call before Vapi or Retell outbound call creation, and proceed only on <code>ALLOW</code>. Inbound screening (beta) rejects invalid numbers, blocks numbers on the authenticated caller&apos;s internal suppression list, and flags matches in the loaded litigator list; outbound DNC/consent rules are not applied.</li>
           </ul>
 
           {/* 4. Decision values */}

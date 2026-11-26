@@ -24,9 +24,12 @@ import { verifyTrustedForm, extractTrustedFormCertId } from './trustedform';
 import type { Account } from './auth';
 import { NPA } from './data/npa';
 import { STATE_CALLING_RULES } from './data/state-calling-rules';
+import { isSuppressed } from './suppression';
+import { ownerKeyFor } from './platform-credentials';
 
 export type GateChecks = {
   valid_number: boolean;
+  internal_dnc?: { evaluated: boolean; listed: boolean; entry_requested_at?: string };
   line_type: 'mobile' | 'landline' | 'voip' | 'unknown';
   disconnected: boolean;
   litigator: { hit: boolean; list?: string };
@@ -180,6 +183,7 @@ export type GateInput = {
   /** Default ai_outbound_shield: local DNC + litigator, no live HLR ping (sub-100ms). */
   profile?: GateProfile;
   live_hlr?: boolean;
+  ownerKey?: string | null;
 };
 
 export async function runPhoneGate(input: GateInput): Promise<GateResult & { checks: GateChecks; mode: string; degraded: boolean; profile: GateProfile; upstream_live: boolean; data_sources: import('./data-sources').DataSourceReceipt[] }> {
@@ -202,6 +206,15 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
     : { status: 'skipped' };
 
   const mode = input.mode === 'fail_open' ? 'fail_open' : 'fail_closed';
+  let internalDnc: { evaluated: boolean; listed: boolean; entry_requested_at?: string } = { evaluated: false, listed: false };
+  let internalDncError = false;
+  if (input.ownerKey && /^\+\d{7,15}$/.test(n)) {
+    try {
+      internalDnc = await isSuppressed(input.ownerKey, n);
+    } catch {
+      internalDncError = true;
+    }
+  }
   const readiness = evaluateShieldReadiness();
   if (readiness.block_reason && mode === 'fail_closed') {
     const data_sources = buildDataSourceReceipts();
@@ -210,6 +223,7 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
       reason: readiness.block_reason,
       checks: {
         valid_number: /^\+\d{7,15}$/.test(n),
+        internal_dnc: internalDnc,
         line_type: 'unknown' as const,
         disconnected: false,
         litigator: { hit: false },
@@ -247,6 +261,7 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
 
   const checks: GateChecks = {
     valid_number: /^\+\d{7,15}$/.test(n),
+    internal_dnc: internalDnc,
     line_type: lineType,
     disconnected,
     litigator,
@@ -278,6 +293,8 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
   let degraded = up.source === 'mock_fallback' || lineType === 'unknown';
 
   if (!checks.valid_number) { decision = 'block'; reason = 'invalid_number'; risk = 90; }
+  else if (internalDncError) { decision = 'review'; reason = 'internal_dnc_unavailable'; risk = 60; }
+  else if (internalDnc.listed) { decision = 'block'; reason = 'internal_dnc'; risk = 100; }
   else if (disconnected) { decision = 'block'; reason = 'disconnected'; risk = 85; }
   // Litigator trap before DNC — professional TCPA plaintiffs are the highest agency risk.
   else if (litigator.hit) { decision = 'block'; reason = 'litigator_list'; risk = 100; }
@@ -333,7 +350,7 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
 
 export type InboundGateChecks = {
   valid_number: boolean;
-  customer_block_list: { evaluated: false; blocked: false };
+  customer_block_list: { evaluated: boolean; blocked: boolean };
   litigator: { hit: boolean; list: string | null };
   outbound_rules: {
     dnc: 'not_evaluated';
@@ -355,18 +372,27 @@ export type InboundGateResult = {
 };
 
 /**
- * Inbound calls use a separate policy: validate the caller and expose a
- * litigator match, but never apply outbound calling rules to a caller.
- * Per-account block-list lookup is not implemented yet.
+ * Inbound calls use a separate policy: validate the caller, check the
+ * customer's internal suppression list when authenticated, and expose a
+ * litigator match, without applying outbound DNC/consent/hours rules.
  */
 export async function runInboundScreen(phone: string, account: Account | null): Promise<InboundGateResult> {
-  void account;
   const normalized = normalizePhone(phone);
   const valid = /^\+\d{7,15}$/.test(normalized);
+  const ownerKey = account ? ownerKeyFor(account) : null;
+  let customerBlock = { evaluated: false, blocked: false };
+  if (valid && ownerKey) {
+    try {
+      const sup = await isSuppressed(ownerKey, normalized);
+      customerBlock = { evaluated: sup.evaluated, blocked: sup.listed };
+    } catch {
+      customerBlock = { evaluated: false, blocked: true };
+    }
+  }
   const litigator = valid ? mockLitigator(normalized) : { hit: false, list: undefined };
   const checks: InboundGateChecks = {
     valid_number: valid,
-    customer_block_list: { evaluated: false, blocked: false },
+    customer_block_list: customerBlock,
     litigator: { hit: litigator.hit, list: litigator.list ?? null },
     outbound_rules: {
       dnc: 'not_evaluated',
@@ -376,15 +402,16 @@ export async function runInboundScreen(phone: string, account: Account | null): 
       line_type: 'not_evaluated',
     },
   };
-  const decision = valid ? 'allow' : 'block';
+  const decision = !valid || customerBlock.blocked ? 'block' : 'allow';
+  const reason = !valid ? 'invalid_number' : customerBlock.blocked ? 'blocked_by_customer' : 'inbound_allowed';
   return {
     decision,
-    reason: valid ? 'inbound_allowed' : 'invalid_number',
+    reason,
     checks,
     verified_at: new Date().toISOString(),
     fresh_for_hours: 24,
     evidence_id: '',
-    risk_score: valid && litigator.hit ? 25 : valid ? 0 : 90,
+    risk_score: !valid ? 90 : customerBlock.blocked ? 100 : litigator.hit ? 25 : 0,
   };
 }
 

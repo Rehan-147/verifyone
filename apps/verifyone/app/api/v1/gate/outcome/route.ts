@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic';
 // (answered / booked / opt-out …). The outcome is sealed into the same
 // hash-chained evidence ledger, so the story for any number reads:
 //   gate decision (ev_…) → call → outcome (ev_…)
-// Opt-outs recorded here feed internal suppression for future dial attempts.
+// Opt-outs recorded here for authenticated callers are added immediately to
+// the caller's internal suppression list for future dial attempts (anonymous
+// free-tier callers have no persistent suppression list).
 //
 // POST /api/v1/gate/outcome
 // { phone, evidence_id? (link to the gate decision), outcome: "connected"|
@@ -16,6 +18,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sealEvidence, checkAndBumpQuota, normalizePhone } from '@/lib/audit-store';
 import { authenticate, meter, rateLimit, creditsAvailable, hasKeyHeader, clientIp } from '@/lib/auth';
 import { persistenceUnavailableResponse } from '@/lib/persistence-response';
+import { ownerKeyFor } from '@/lib/platform-credentials';
+import { addSuppression } from '@/lib/suppression';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -97,6 +101,29 @@ export async function POST(req: NextRequest) {
     return persistenceUnavailableResponse(CORS);
   }
   const { evidence, persistence } = sealed;
+  let suppressionEvidenceId: string | null = null;
+  let suppressed = false;
+  if (isOptOut && acc) {
+    try {
+      const sup = await addSuppression({
+        ownerKey: ownerKeyFor(acc),
+        phone: normalized,
+        reason: 'opt_out',
+        source: 'outcome_api',
+        sourceEvidenceId: gateEvidenceId || evidence.evidence_id,
+      });
+      suppressed = true;
+      suppressionEvidenceId = sup.evidence_id;
+    } catch (err) {
+      if (err instanceof Error && err.message === 'suppression_evidence_pending') {
+        return NextResponse.json(
+          { error: 'suppression_evidence_pending', suppressed: true, evidence_pending: true },
+          { status: 503, headers: CORS },
+        );
+      }
+      return persistenceUnavailableResponse(CORS);
+    }
+  }
   if (acc) {
     const m = await meter(acc, 1, '/api/v1/gate/outcome:outcome');
     if (m.race) console.warn('[billing] credit debit race after outcome evidence', { email: acc.email });
@@ -108,7 +135,14 @@ export async function POST(req: NextRequest) {
       reason: outcome,
       evidence_id: evidence.evidence_id,
       linked_gate_evidence: gateEvidenceId || null,
-      suppress_henceforth: isOptOut,
+      suppress_henceforth: isOptOut && !!acc,
+      suppressed,
+      suppression_evidence_id: suppressionEvidenceId,
+      ...(isOptOut && !acc
+        ? {
+            note: 'Authenticate with an API key to keep an internal do-not-call list; this opt-out was recorded as evidence only.',
+          }
+        : {}),
       persistence,
       audit: {
         chain: 'sha256-hash-chained',

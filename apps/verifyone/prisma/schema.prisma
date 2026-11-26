@@ -177,3 +177,24 @@ model BulkRow {
   @@index([jobId, status])
   @@unique([jobId, rowIndex])
 }
+
+model SuppressionEntry {
+  id               String    @id @default(cuid())
+  ownerKey         String
+  phoneHash        String
+  phoneMasked      String
+  phoneEncrypted   String?
+  reason           String
+  source           String
+  requestedAt      DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  createdBy        String?
+  sourceEvidenceId String?
+  addEvidenceId    String?
+  removedAt        DateTime?
+  removedBy        String?
+  removeReason     String?
+  removeEvidenceId String?
+
+  @@index([ownerKey, phoneHash])
+}

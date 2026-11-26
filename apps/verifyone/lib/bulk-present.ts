@@ -56,6 +56,7 @@ export function resultsCsv(snapshot: BulkSnapshot) {
 }
 
 const RISK_CATEGORIES = [
+  ['internal_dnc', new Set(['internal_dnc'])],
   ['litigator_hits', new Set(['litigator_list'])],
   ['dnc_listed_without_consent', new Set(['do_not_call_no_consent'])],
   ['ai_voice_consent_missing', new Set(['ai_voice_consent_required'])],

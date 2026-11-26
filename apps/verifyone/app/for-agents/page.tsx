@@ -31,7 +31,7 @@ const CAPABILITIES: { title: string; body: string }[] = [
   },
   {
     title: 'API and MCP access',
-    body: 'For Vapi or Retell outbound, call the REST gate and start the call only on ALLOW. Inbound screening (beta) rejects invalid numbers and flags matches in the loaded litigator list; per-account block-list lookup is not wired yet, and outbound DNC/consent rules are not applied. MCP can return decisions to supported agent workflows.',
+    body: 'For Vapi or Retell outbound, call the REST gate and start the call only on ALLOW. Inbound screening (beta) rejects invalid numbers, blocks numbers on the authenticated caller&apos;s internal suppression list, and flags matches in the loaded litigator list; outbound DNC/consent rules are not applied. MCP can return decisions to supported agent workflows.',
   },
 ];
 

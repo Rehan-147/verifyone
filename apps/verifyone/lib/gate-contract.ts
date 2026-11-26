@@ -6,6 +6,8 @@ export type PublicDecision = 'ALLOW' | 'DENY' | 'REVIEW';
 export type PublicReason =
   | 'PASS'
   | 'ACTIVE_HLR'
+  | 'INTERNAL_DNC'
+  | 'INTERNAL_DNC_UNAVAILABLE'
   | 'LITIGATOR_TRAP'
   | 'DNC_NATIONAL_VIOLATION'
   | 'REASSIGNED_NUMBER'
@@ -51,6 +53,10 @@ export function toPublicReason(
   opts?: { live_hlr?: boolean; upstream_live?: boolean },
 ): PublicReason {
   switch (internalReason) {
+    case 'internal_dnc':
+      return 'INTERNAL_DNC';
+    case 'internal_dnc_unavailable':
+      return 'INTERNAL_DNC_UNAVAILABLE';
     case 'litigator_list':
       return 'LITIGATOR_TRAP';
     case 'do_not_call_no_consent':
