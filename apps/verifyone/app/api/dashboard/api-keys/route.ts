@@ -17,6 +17,7 @@ export async function GET() {
   if (!orgId) return NextResponse.json({ error: 'organization_required' }, { status: 400 });
 
   const org = await getOrCreateOrganization(orgId, orgSlug || undefined);
+  if (org.disabledAt) return NextResponse.json({ error: 'org_disabled' }, { status: 403 });
   const keys = await listOrgApiKeys(org.id);
   return NextResponse.json({ keys });
 }
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: 'name_required' }, { status: 400 });
 
   const org = await getOrCreateOrganization(orgId, orgSlug || undefined);
+  if (org.disabledAt) return NextResponse.json({ error: 'org_disabled' }, { status: 403 });
   const created = await createOrgApiKey(org.id, name, userId);
   return NextResponse.json({ key: created.key, record: created.record }, { status: 201 });
 }

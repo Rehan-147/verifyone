@@ -11,7 +11,7 @@ export async function getOrCreateOrganization(clerkOrgId: string, name?: string)
   return prisma.organization.upsert({
     where: { clerkOrgId },
     create: { clerkOrgId, name: cleanName },
-    update: name ? { name: cleanName, disabledAt: null } : {},
+    update: name ? { name: cleanName } : {},
   });
 }
 

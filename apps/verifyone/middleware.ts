@@ -3,12 +3,20 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { clerkConfigured } from './lib/clerk';
 
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api/dashboard(.*)']);
+const signInUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || '/sign-in';
+const signUpUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL || '/sign-up';
 
-const withClerk = clerkMiddleware((auth, req) => {
-  if (isProtectedRoute(req)) {
-    auth().protect();
-  }
-});
+const withClerk = clerkMiddleware(
+  (auth, req) => {
+    if (isProtectedRoute(req)) {
+      const { userId, redirectToSignIn } = auth();
+      if (!userId) {
+        return redirectToSignIn({ returnBackUrl: req.url });
+      }
+    }
+  },
+  { signInUrl, signUpUrl },
+);
 
 export default function middleware(req: NextRequest, event: import('next/server').NextFetchEvent) {
   if (!clerkConfigured()) {

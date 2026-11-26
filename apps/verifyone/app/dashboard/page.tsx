@@ -54,6 +54,18 @@ export default async function DashboardPage() {
   }
 
   const org = dbEnabled() ? await getOrCreateOrganization(orgId, orgSlug || undefined) : null;
+  if (org?.disabledAt) {
+    return (
+      <main className="bg-ground py-20 px-4">
+        <div className="max-w-lg mx-auto dp-card p-8 text-center space-y-3">
+          <h1 className="text-xl font-extrabold text-ink font-display">This organization has been disabled</h1>
+          <p className="text-sm text-ink-secondary">
+            API keys for <strong className="text-ink">{org.name}</strong> are revoked and key creation is disabled.
+          </p>
+        </div>
+      </main>
+    );
+  }
   const activeKeys = org ? (await listOrgApiKeys(org.id)).filter((k) => !k.revokedAt).length : 0;
 
   return (

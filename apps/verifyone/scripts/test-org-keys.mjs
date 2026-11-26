@@ -79,7 +79,33 @@ const crossRead = await fetch(`${base}/api/v1/bulk/jobs/${bulkB.job_id}`, {
 });
 check('org A key cannot read org B bulk job (404)', !!bulkB.job_id && crossRead.status === 404, `status=${crossRead.status}`);
 
-// 7. /api/auth/signup still works in dev
+// 7. Disabling an org revokes its keys and provisioning cannot re-enable it
+const disableRes = await fetch(`${base}/api/test/orgs/${orgB.org.clerkOrgId}/disable`, { method: 'POST' });
+const disabledGate = await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${orgB.api_key}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: '+12125550100' }),
+});
+check('disabled org key returns 401', disableRes.status === 200 && disabledGate.status === 401, `gate=${disabledGate.status}`);
+
+const reprovRes = await fetch(`${base}/api/test/orgs/${orgB.org.clerkOrgId}/provision`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'New Name' }),
+});
+const reprovBody = await readJson(reprovRes);
+const afterReprovGate = await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${orgB.api_key}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: '+12125550100' }),
+});
+check(
+  'provisioning a disabled org keeps disabledAt and key stays 401',
+  reprovRes.status === 200 && !!reprovBody.org?.disabledAt && reprovBody.org?.name === 'New Name' && afterReprovGate.status === 401,
+  `disabledAt=${reprovBody.org?.disabledAt}, gate=${afterReprovGate.status}`,
+);
+
+// 8. /api/auth/signup still works in dev
 const signupRes = await fetch(`${base}/api/auth/signup`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },

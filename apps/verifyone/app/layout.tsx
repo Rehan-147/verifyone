@@ -95,7 +95,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 
   if (clerkPublishableKeyConfigured()) {
-    return <ClerkProvider>{shell}</ClerkProvider>;
+    return (
+      <ClerkProvider
+        signInUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || '/sign-in'}
+        signUpUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL || '/sign-up'}
+        signInFallbackRedirectUrl={process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || '/dashboard'}
+        signUpFallbackRedirectUrl={process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL || '/dashboard'}
+      >
+        {shell}
+      </ClerkProvider>
+    );
   }
   return shell;
 }

@@ -20,6 +20,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (orgRole !== 'org:admin') return NextResponse.json({ error: 'admin_required' }, { status: 403 });
 
   const org = await getOrCreateOrganization(orgId, orgSlug || undefined);
+  if (org.disabledAt) return NextResponse.json({ error: 'org_disabled' }, { status: 403 });
   const revoked = await revokeOrgApiKey(org.id, params.id);
   if (!revoked) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return NextResponse.json({ ok: true, id: params.id });
