@@ -9,15 +9,16 @@ export const REVIEW_TTL_HOURS = Number(process.env.REVIEW_TTL_HOURS ?? 72);
 export const REVIEW_APPROVAL_TTL_HOURS = Number(process.env.REVIEW_APPROVAL_TTL_HOURS ?? 24);
 
 // ── Overridability rules ────────────────────────────────────────────────────
-// REVIEW reasons (all approvable)
+// REVIEW reasons that are human-approvable.
+// internal_dnc_unavailable is intentionally excluded: if the opt-out store is
+// unreachable the only safe action is to retry — never a human override.
 export const APPROVABLE_REVIEW_REASONS = new Set([
   'timezone_unknown',
   'consent_cert_unverified',
   'reassigned_check_unavailable',
-  'internal_dnc_unavailable',
 ]);
 
-// DENY reasons that may be disputed
+// DENY reasons that may be disputed (data-source errors the owner can rebut)
 export const DISPUTEABLE_DENY_REASONS = new Set([
   'litigator_list',
   'disconnected',
@@ -26,6 +27,7 @@ export const DISPUTEABLE_DENY_REASONS = new Set([
 // All internal reasons that are NEVER overridable
 export const NEVER_OVERRIDABLE_REASONS = new Set([
   'internal_dnc',
+  'internal_dnc_unavailable', // retry instead; never a human override
   'quiet_hours',
   'state_quiet_hours',
   'invalid_number',
@@ -35,7 +37,6 @@ export const NEVER_OVERRIDABLE_REASONS = new Set([
   'registry_unavailable_fail_closed',
   'gate_unavailable_fail_closed',
   'fail_open_gate_unavailable',
-  'internal_dnc_unavailable', // only as a dispute; it IS approvable as a REVIEW
 ]);
 
 export function isOverridable(reason: string, kind: 'review' | 'dispute'): boolean {
@@ -46,6 +47,7 @@ export function isOverridable(reason: string, kind: 'review' | 'dispute'): boole
 
 export function notOverridableMessage(reason: string): string {
   if (reason === 'internal_dnc') return 'An opt-out can only be lifted by removing the entry from the suppression list with a reason.';
+  if (reason === 'internal_dnc_unavailable') return 'The opt-out store is temporarily unreachable — retry in 30 seconds instead of overriding.';
   if (reason === 'quiet_hours' || reason === 'state_quiet_hours') return 'Quiet-hours blocks lift automatically — wait until permitted calling hours.';
   if (reason === 'invalid_number') return 'The number is structurally invalid and cannot be overridden.';
   if (reason === 'do_not_call_no_consent') return 'A federal/national DNC violation requires valid consent on file, not a manual override.';
@@ -148,11 +150,17 @@ export async function createReviewItem(input: {
   phone: string;
   reason: string;
   publicReason: string;
+  /** Optional: pre-computed phone hash (from evidence record). When provided,
+   *  it is used directly instead of re-normalizing the phone argument, which
+   *  may be a masked value from the evidence record. */
+  phoneHashOverride?: string;
 }): Promise<ReviewItem> {
   const normalized = normalizePhone(input.phone);
-  const phoneHash = sha256(normalized);
-  const phoneMasked = maskPhone(normalized);
-  const phoneEncrypted = tryEncrypt(normalized);
+  const phoneHash = input.phoneHashOverride ?? sha256(normalized);
+  // If a phoneHashOverride was supplied the input.phone is already masked;
+  // preserve it verbatim for display instead of re-normalizing.
+  const phoneMasked = input.phoneHashOverride ? input.phone : maskPhone(normalized);
+  const phoneEncrypted = input.phoneHashOverride ? null : tryEncrypt(normalized);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + REVIEW_TTL_HOURS * 3_600_000);
 
@@ -233,6 +241,8 @@ export async function openDispute(input: {
   reason: string;
   publicReason: string;
   note: string;
+  /** Optional: pre-computed phone hash from evidence record (avoids masked-phone mismatch). */
+  phoneHashOverride?: string;
 }): Promise<ReviewItem> {
   if (!DISPUTEABLE_DENY_REASONS.has(input.reason)) {
     const err = new Error('not_overridable');
@@ -473,6 +483,25 @@ export async function findUsableApproval(
         new Date(r.approvalExpiresAt) > now &&
         r.approvalUsedAt == null,
     );
+    return found ?? null;
+  });
+}
+
+// ── findApprovalById ─────────────────────────────────────────────────────────
+// Load a review item by id for use in the approval-id gate path.
+// Returns the item regardless of status so callers can emit the right error.
+export async function findApprovalById(
+  id: string,
+  ownerKey: string,
+): Promise<ReviewItem | null> {
+  if (dbEnabled()) {
+    const item = await prisma.reviewItem.findFirst({ where: { id, ownerKey } });
+    return item ? mapDbRow(item) : null;
+  }
+
+  return serialize(async () => {
+    const rows = await readAllFile();
+    const found = rows.find((r) => r.id === id && r.ownerKey === ownerKey);
     return found ?? null;
   });
 }

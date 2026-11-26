@@ -182,6 +182,7 @@ export async function POST(req: NextRequest) {
       ...(creditsLeft !== undefined ? { credits_left: creditsLeft } : {}),
       ...('review_id' in result && result.review_id ? { review_id: result.review_id } : {}),
       ...('approval_status' in result && result.approval_status ? { approval_status: result.approval_status } : {}),
+      ...('retry_after_seconds' in result && result.retry_after_seconds != null ? { retry_after_seconds: result.retry_after_seconds } : {}),
       audit: { persistence, chain: 'sha256-hash-chained', verify_url: `/api/v1/gate/audit/${evidence.evidence_id}` },
     },
     { headers: CORS },

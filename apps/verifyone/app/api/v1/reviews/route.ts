@@ -51,12 +51,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'not_overridable', reason, message: notOverridableMessage(reason) }, { status: 400, headers: CORS });
   }
 
+  // phone_hash from the evidence record avoids normalizing a masked phone
+  // (the masked value contains '*' chars that corrupt normalization).
   const phoneMasked = String(ev.phone_masked ?? (ev.request as Record<string, unknown> | undefined)?.phone_masked ?? '');
+  const phoneHashOverride = typeof (ev.request as Record<string, unknown> | undefined)?.phone_hash === 'string'
+    ? String((ev.request as Record<string, unknown>).phone_hash)
+    : undefined;
 
   try {
     const item = await openDispute({
       ownerKey, gateEvidenceId: evidence_id, phone: phoneMasked,
       reason, publicReason: toPublicReason(reason, {} as never), note: note!,
+      phoneHashOverride,
     });
     return NextResponse.json({ item: toMaskedItem(item) }, { status: 201, headers: CORS });
   } catch (err: unknown) {

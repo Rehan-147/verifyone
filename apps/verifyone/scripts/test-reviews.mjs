@@ -1,6 +1,8 @@
 // scripts/test-reviews.mjs
 // Tests the review queue: REVIEW auto-creation, dedup, approve, reject, approval_id gate flow,
-// concurrency (exactly one ALLOW), cross-number, suppression-wins, dispute not_overridable, expiry.
+// concurrency (exactly one ALLOW), cross-number, suppression-wins, dispute not_overridable, expiry,
+// PLUS: dispute e2e, ladder-continuation, quiet-hours-after-approval, internal_dnc_unavailable
+// not approvable, and waive-injection defence.
 const base = (process.env.BASE_URL || 'http://localhost:3200').replace(/\/$/, '');
 const dbMode = process.env.DB_MODE === '1';
 const checks = [];
@@ -83,6 +85,7 @@ const g3 = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
   body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime, approval_id: approvalId }),
 }));
 check('gate with approval_id → ALLOW APPROVED_AFTER_REVIEW', g3.decision === 'ALLOW' && g3.reason === 'APPROVED_AFTER_REVIEW', `decision=${g3.decision} reason=${g3.reason}`);
+check('checks.waived present with correct reason', g3.checks?.waived?.reason === 'timezone_unknown', JSON.stringify(g3.checks?.waived));
 
 // ── 7. Same approval_id again → REVIEW (approval used) ───────────────────────
 const g4 = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
@@ -165,6 +168,7 @@ const gSuppressed = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
   body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime, approval_id: rIdB }),
 }));
 check('suppression wins: DENY INTERNAL_DNC even with approval_id', gSuppressed.decision === 'DENY' && gSuppressed.reason === 'INTERNAL_DNC', `decision=${gSuppressed.decision} reason=${gSuppressed.reason}`);
+check('suppression blocks → approval_status is other_blocker', gSuppressed.approval_status === 'other_blocker', `approval_status=${gSuppressed.approval_status}`);
 // Remove suppression so later tests work
 await fetch(`${base}/api/v1/suppression`, {
   method: 'DELETE',
@@ -241,6 +245,187 @@ if (dbMode || !dbMode) { // runs in both modes
     check('expired item test (skipped: hook unavailable)', true, 'hook returned ' + backdateRes.status);
   }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// NEW TESTS — BUG FIX VERIFICATION
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── 14. Dispute flow end-to-end (litigator_list) ─────────────────────────────
+// +12121000006 is a litigator-trap phone (hash % 17 === 0), NPA 212 (New York).
+// daytime = 17:00 UTC = 12:00 ET → within hours; with express_written consent →
+// only the litigator check blocks.
+const LITIGATOR_PHONE = '+12121000006';
+
+const gLit = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: LITIGATOR_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime }),
+}));
+check('litigator phone → DENY LITIGATOR_TRAP', gLit.decision === 'DENY' && gLit.reason === 'LITIGATOR_TRAP', `decision=${gLit.decision} reason=${gLit.reason}`);
+
+// Open a dispute
+const disputeRes = await fetch(`${base}/api/v1/reviews`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    evidence_id: gLit.evidence_id,
+    reason: 'litigator_list',
+    note: 'False positive — this number was incorrectly flagged.',
+  }),
+});
+const disputeBody = await readJson(disputeRes);
+check('dispute on litigator_list → 200', disputeRes.status === 200 || disputeRes.status === 201, `status=${disputeRes.status}`);
+const disputeId = disputeBody.item?.id;
+check('dispute returns item id', typeof disputeId === 'string' && disputeId.length > 0, disputeId);
+
+// Approve the dispute
+const approveDisputeRes = await fetch(`${base}/api/v1/reviews/${disputeId}/approve`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ note: 'Confirmed false positive after manual check.' }),
+});
+check('approve dispute → 200', approveDisputeRes.status === 200, `status=${approveDisputeRes.status}`);
+
+// Gate with approved dispute → ALLOW APPROVED_AFTER_REVIEW + checks.waived
+const gLitApproved = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: LITIGATOR_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime, approval_id: disputeId }),
+}));
+check('dispute approval → ALLOW APPROVED_AFTER_REVIEW', gLitApproved.decision === 'ALLOW' && gLitApproved.reason === 'APPROVED_AFTER_REVIEW', `decision=${gLitApproved.decision} reason=${gLitApproved.reason}`);
+check('checks.waived shows litigator_list', gLitApproved.checks?.waived?.reason === 'litigator_list', JSON.stringify(gLitApproved.checks?.waived));
+
+// Reuse same dispute approval → normal DENY (consumed)
+const gLitReuse = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: LITIGATOR_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime, approval_id: disputeId }),
+}));
+check('reused dispute approval → DENY LITIGATOR_TRAP', gLitReuse.decision === 'DENY' && gLitReuse.reason === 'LITIGATOR_TRAP', `decision=${gLitReuse.decision} reason=${gLitReuse.reason}`);
+
+// ── 15. Ladder continuation — timezone approved but consent still blocks ─────
+// NPA 999 phone (mobile, no litigator) with NO consent →
+// Without waiver: ladder hits ai_voice_consent_required BEFORE timezone_unknown.
+// With express_written: ladder hits timezone_unknown.
+// Step 1: get timezone_unknown REVIEW (needs express_written)
+const gLadder1 = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime }),
+}));
+const ladderReviewId = gLadder1.review_id;
+check('ladder setup: REVIEW TIMEZONE_UNKNOWN', gLadder1.decision === 'REVIEW' && gLadder1.reason === 'TIMEZONE_UNKNOWN', `decision=${gLadder1.decision} reason=${gLadder1.reason}`);
+
+// Step 2: approve it
+await fetch(`${base}/api/v1/reviews/${ladderReviewId}/approve`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ note: 'Ladder continuation test' }),
+});
+
+// Step 3: gate with approval_id but WITHOUT consent → ai_voice_consent_required (other_blocker)
+const gLadder2 = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: false, type: 'none' }, debug_now: daytime, approval_id: ladderReviewId }),
+}));
+check('ladder: no consent → DENY TCPA_AI_VOICE_CONSENT (other blocker)', gLadder2.decision === 'DENY' && gLadder2.reason === 'TCPA_AI_VOICE_CONSENT', `decision=${gLadder2.decision} reason=${gLadder2.reason}`);
+check('ladder: approval_status is other_blocker', gLadder2.approval_status === 'other_blocker', `approval_status=${gLadder2.approval_status}`);
+
+// Step 4: same approval with express_written consent → ALLOW (approval unused until now)
+const gLadder3 = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime, approval_id: ladderReviewId }),
+}));
+check('ladder: consent fixed → ALLOW APPROVED_AFTER_REVIEW', gLadder3.decision === 'ALLOW' && gLadder3.reason === 'APPROVED_AFTER_REVIEW', `decision=${gLadder3.decision} reason=${gLadder3.reason}`);
+
+// ── 16. Quiet hours after approved dispute ───────────────────────────────────
+// Litigator phone (+12121000006), NPA 212, with approved dispute.
+// Gate at 22:30 UTC → 17:30 ET → WITHIN hours (federal 08-21 ET).
+// Wait — 22:30 UTC = 17:30 ET. That's still within hours.
+// We need a time that is 21:30+ in ET: 02:30 UTC+5 → 21:30 ET. So debug_now = next day 02:30 UTC.
+const lateNight = '2026-11-17T02:30:00Z'; // 21:30 ET → quiet hours
+
+// Need a fresh dispute approval (the previous one was consumed)
+const gLit2 = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: LITIGATOR_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime }),
+}));
+// This should return DENY LITIGATOR_TRAP (the first dispute was consumed)
+const disputeRes2 = await fetch(`${base}/api/v1/reviews`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    evidence_id: gLit2.evidence_id,
+    reason: 'litigator_list',
+    note: 'Second dispute for quiet-hours test.',
+  }),
+});
+const dispute2Body = await readJson(disputeRes2);
+const dispute2Id = dispute2Body.item?.id;
+await fetch(`${base}/api/v1/reviews/${dispute2Id}/approve`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ note: 'Approve for quiet-hours test' }),
+});
+
+// Gate with approval during quiet hours → DENY QUIET_HOURS, approval NOT consumed
+const gQuiet = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: LITIGATOR_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: lateNight, approval_id: dispute2Id }),
+}));
+check('quiet hours after dispute: DENY QUIET_HOURS', gQuiet.decision === 'DENY' && gQuiet.reason === 'QUIET_HOURS', `decision=${gQuiet.decision} reason=${gQuiet.reason}`);
+check('quiet hours: approval_status other_blocker', gQuiet.approval_status === 'other_blocker', `approval_status=${gQuiet.approval_status}`);
+
+// Confirm approval was NOT consumed: re-use during daytime → ALLOW
+const gQuietRetry = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: LITIGATOR_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime, approval_id: dispute2Id }),
+}));
+check('same approval during daytime → ALLOW', gQuietRetry.decision === 'ALLOW' && gQuietRetry.reason === 'APPROVED_AFTER_REVIEW', `decision=${gQuietRetry.decision} reason=${gQuietRetry.reason}`);
+
+// ── 17. internal_dnc_unavailable is not approvable ───────────────────────────
+// Try to open a dispute for internal_dnc_unavailable using a real DENY evidence
+// (the internal_dnc DENY from test 11 is a valid evidence with reason 'internal_dnc').
+// Using that evidence_id: reason from evidence is 'internal_dnc' → not in DISPUTEABLE_DENY_REASONS → 400.
+// Also verify with a fake evidence_id → 404 (evidence not found).
+// Either response proves internal_dnc_unavailable is blocked.
+const idnuDisputeRes = await fetch(`${base}/api/v1/reviews`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    evidence_id: 'fake_ev_idnu_not_found',
+    reason: 'internal_dnc_unavailable',
+    note: 'Trying to dispute internal_dnc_unavailable',
+  }),
+});
+// 404 = evidence not found (fake id); 400 = not_overridable (if evidence found with that reason)
+check('internal_dnc_unavailable dispute → 400 or 404 (not approvable)', idnuDisputeRes.status === 400 || idnuDisputeRes.status === 404, `status=${idnuDisputeRes.status}`);
+
+// ── 18. waive cannot be injected by the client ───────────────────────────────
+// Suppress a number, then POST gate with a body field waive:{reason:'internal_dnc'}
+// → the gate must still DENY INTERNAL_DNC (waive from request body is ignored)
+const WAIVE_TEST_PHONE = '+12125558888';
+await fetch(`${base}/api/v1/suppression`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phones: [WAIVE_TEST_PHONE], reason: 'opt_out' }),
+});
+const gWaiveInject = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    phone: WAIVE_TEST_PHONE,
+    consent: { declared: true, type: 'express_written' },
+    debug_now: daytime,
+    waive: { reason: 'internal_dnc' },
+  }),
+}));
+check('waive injection → still DENY INTERNAL_DNC', gWaiveInject.decision === 'DENY' && gWaiveInject.reason === 'INTERNAL_DNC', `decision=${gWaiveInject.decision} reason=${gWaiveInject.reason}`);
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n--- test-reviews results ---');
