@@ -3,9 +3,23 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+model Organization {
+  id           String         @id @default(cuid())
+  clerkOrgId   String         @unique
+  name         String
+  plan         String         @default("FREE")
+  credits      Int            @default(1000)
+  billingEmail String?
+  disabledAt   DateTime?
+  apiKeys      ApiKey[]
+  creditLedger CreditLedger[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 model User {
@@ -22,12 +36,21 @@ model User {
 }
 
 model ApiKey {
-  id        String    @id @default(cuid())
-  key       String    @unique
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  createdAt DateTime  @default(now())
-  lastUsedAt DateTime?
+  id                   String        @id @default(cuid())
+  keyHash              String        @unique
+  name                 String        @default("Default key")
+  prefix               String        @default("vk_live_")
+  last4                String        @default("")
+  orgId                String?
+  org                  Organization? @relation(fields: [orgId], references: [id])
+  userId               String?
+  user                 User?         @relation(fields: [userId], references: [id])
+  createdByClerkUserId String?
+  createdAt            DateTime      @default(now())
+  lastUsedAt           DateTime?
+  revokedAt            DateTime?
+
+  @@index([orgId])
 }
 
 model CheckHistory {
@@ -42,11 +65,15 @@ model CheckHistory {
 }
 
 model CreditLedger {
-  id        String   @id @default(cuid())
-  userId    String
+  id        String        @id @default(cuid())
+  userId    String?
+  orgId     String?
+  org       Organization? @relation(fields: [orgId], references: [id])
   amount    Int
   reason    String
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
+
+  @@index([orgId])
 }
 
 // Pre-Dial Gate audit trail — the tamper-evident log agencies show their lawyers.
@@ -73,61 +100,61 @@ model GateAudit {
 }
 
 model ChainTail {
-  id        Int      @id @default(1)
+  id         Int      @id @default(1)
   recordHash String
-  seq       BigInt
-  updatedAt DateTime @updatedAt
+  seq        BigInt
+  updatedAt  DateTime @updatedAt
 }
 
 model PlatformCredential {
-  id          String   @id @default(cuid())
-  ownerKey    String
-  platform    String
+  id           String    @id @default(cuid())
+  ownerKey     String
+  platform     String
   encryptedKey String
-  keyLast4    String
-  defaults    Json
-  verifiedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  keyLast4     String
+  defaults     Json
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@unique([ownerKey, platform])
 }
 
 model DialIdempotency {
-  id               String   @id @default(cuid())
-  ownerKey         String
-  idempotencyKey   String
-  requestHash      String
-  state            String   @default("in_progress")
-  responseStatus   Int?
-  response         Json?
-  createdAt        DateTime @default(now())
-  expiresAt        DateTime
+  id             String   @id @default(cuid())
+  ownerKey       String
+  idempotencyKey String
+  requestHash    String
+  state          String   @default("in_progress")
+  responseStatus Int?
+  response       Json?
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
 
   @@unique([ownerKey, idempotencyKey])
   @@index([expiresAt])
 }
 
 model BulkJob {
-  id            String     @id
-  ownerKey      String
-  status        String
-  profile       String
-  totalRows     Int
-  uniqueRows    Int
-  processedRows Int        @default(0)
-  invalidRows   Int        @default(0)
-  duplicateRows Int        @default(0)
-  creditsCharged Int       @default(0)
-  columns       Json
+  id                 String    @id
+  ownerKey           String
+  status             String
+  profile            String
+  totalRows          Int
+  uniqueRows         Int
+  processedRows      Int       @default(0)
+  invalidRows        Int       @default(0)
+  duplicateRows      Int       @default(0)
+  creditsCharged     Int       @default(0)
+  columns            Json
   dataSourceSnapshot Json?
-  simulatedData Boolean  @default(false)
-  leaseUntil    DateTime?
-  leaseToken    String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  expiresAt     DateTime
-  rows          BulkRow[]
+  simulatedData      Boolean   @default(false)
+  leaseUntil         DateTime?
+  leaseToken         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  expiresAt          DateTime
+  rows               BulkRow[]
 
   @@index([ownerKey, createdAt])
   @@index([status, createdAt])
@@ -135,7 +162,7 @@ model BulkJob {
 }
 
 model BulkRow {
-  id         String   @id @default(cuid())
+  id         String  @id @default(cuid())
   jobId      String
   rowIndex   Int
   original   Json

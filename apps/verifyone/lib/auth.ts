@@ -20,6 +20,7 @@ function requirePersistentAccounts() {
 export type Account = {
   keyHash: string;
   email: string;
+  orgId?: string;
   plan: 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
   credits: number;
   createdAt: string;

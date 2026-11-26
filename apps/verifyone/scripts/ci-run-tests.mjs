@@ -81,6 +81,7 @@ try {
     return !['node_modules', '.next', '.data', '.git'].includes(name) && !name.startsWith('.env');
   } });
   const env = { ...process.env, NODE_ENV: 'development', VERIFYONE_CREDENTIALS_KEY: randomBytes(32).toString('base64'),
+    VERIFYONE_TEST_HOOKS: '1',
     VAPI_API_BASE: 'http://localhost:3999', RETELL_API_BASE: 'http://localhost:3999',
     BASE_URL: 'http://localhost:3200', MOCK_URL: 'http://localhost:3999',
     DB_MODE: dbMode ? '1' : '0', NEXT_TELEMETRY_DISABLED: '1' };
@@ -118,7 +119,7 @@ try {
   }
   console.log(`Sanity check PASS: audit.persistence=${persistence} (mode=${dbMode ? 'postgres' : 'file'})`);
 
-  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-calling-hours', 'test-bulk', 'chain-concurrency']) {
+  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-calling-hours', 'test-bulk', 'test-org-keys', 'chain-concurrency']) {
     const started = Date.now();
     const child = start([path.join(app, 'scripts', suite + '.mjs')], env, sandbox);
     const code = await new Promise(resolve => { child.once('exit', code => resolve(code ?? 1)); child.once('error', () => resolve(1)); });

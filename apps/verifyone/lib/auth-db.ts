@@ -9,6 +9,7 @@ export function sha256(s: string) {
 export type DbAccount = {
   keyHash: string;
   email: string;
+  orgId?: string;
   plan: 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
   credits: number;
   createdAt: string;
@@ -26,6 +27,22 @@ function mapUser(u: { email: string; plan: string; credits: number; createdAt: D
   };
 }
 
+function mapOrg(
+  org: { id: string; billingEmail: string | null; plan: string; credits: number; createdAt: Date },
+  keyHash: string,
+  lastUsedAt?: Date | null,
+): DbAccount {
+  return {
+    keyHash,
+    orgId: org.id,
+    email: org.billingEmail || `org:${org.id}`,
+    plan: (org.plan as DbAccount['plan']) || 'FREE',
+    credits: org.credits,
+    createdAt: org.createdAt.toISOString(),
+    lastUsedAt: lastUsedAt?.toISOString(),
+  };
+}
+
 export async function dbCreateAccount(email: string, plan: DbAccount['plan'] = 'FREE') {
   const key = 'vk_live_' + crypto.randomBytes(24).toString('hex');
   const keyHash = sha256(key);
@@ -35,14 +52,22 @@ export async function dbCreateAccount(email: string, plan: DbAccount['plan'] = '
     create: { email: email.toLowerCase(), plan, credits },
     update: {},
   });
-  await prisma.apiKey.create({ data: { key: keyHash, userId: user.id } });
+  await prisma.apiKey.create({
+    data: {
+      keyHash,
+      name: 'Signup key',
+      prefix: key.slice(0, 12),
+      last4: key.slice(-4),
+      userId: user.id,
+    },
+  });
   return { key, account: mapUser(user, keyHash) };
 }
 
 export async function dbFindByEmail(email: string) {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() }, include: { apiKeys: true } });
   if (!user || !user.apiKeys[0]) return null;
-  return mapUser(user, user.apiKeys[0].key, user.apiKeys[0].lastUsedAt);
+  return mapUser(user, user.apiKeys[0].keyHash, user.apiKeys[0].lastUsedAt);
 }
 
 export async function dbApplyPlan(email: string, plan: DbAccount['plan'], credits: number) {
@@ -58,15 +83,46 @@ export async function dbApplyPlan(email: string, plan: DbAccount['plan'], credit
   return mapUser(user, acc.keyHash, acc.lastUsedAt ? new Date(acc.lastUsedAt) : undefined);
 }
 
-export async function dbAuthenticate(rawKey: string) {
+export async function dbAuthenticate(rawKey: string): Promise<DbAccount | null> {
   const keyHash = sha256(rawKey);
-  const row = await prisma.apiKey.findUnique({ where: { key: keyHash }, include: { user: true } });
-  if (!row) return null;
-  await prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } });
-  return mapUser(row.user, keyHash, new Date());
+  const row = await prisma.apiKey.findUnique({
+    where: { keyHash },
+    include: { org: true, user: true },
+  });
+  if (!row || row.revokedAt) return null;
+
+  if (row.org) {
+    if (row.org.disabledAt) return null;
+    void prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
+    return mapOrg(row.org, keyHash, new Date());
+  }
+
+  if (row.user) {
+    void prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
+    return mapUser(row.user, keyHash, new Date());
+  }
+
+  return null;
 }
 
 export async function dbMeter(acc: DbAccount, cost: number, reason = 'metered') {
+  if (acc.orgId) {
+    const orgId = acc.orgId;
+    return prisma.$transaction(async (tx) => {
+      const update = await tx.organization.updateMany({
+        where: { id: orgId, disabledAt: null, credits: { gte: cost } },
+        data: { credits: { decrement: cost } },
+      });
+      if (update.count === 0) {
+        const current = await tx.organization.findUnique({ where: { id: orgId }, select: { credits: true } });
+        return { metered: false as const, creditsLeft: current?.credits ?? 0, race: true as const };
+      }
+      const org = await tx.organization.findUniqueOrThrow({ where: { id: orgId }, select: { id: true, credits: true } });
+      await tx.creditLedger.create({ data: { orgId: org.id, amount: -cost, reason } });
+      return { metered: true as const, creditsLeft: org.credits };
+    }, TX_OPTIONS);
+  }
+
   return prisma.$transaction(async (tx) => {
     const update = await tx.user.updateMany({
       where: { email: acc.email.toLowerCase(), credits: { gte: cost } },

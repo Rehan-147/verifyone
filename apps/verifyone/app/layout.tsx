@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import { ClerkProvider } from '@clerk/nextjs';
 import '../vendor/design-system/astryx-neutral-theme.css';
 import './globals.css';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { clerkPublishableKeyConfigured } from '../lib/clerk';
 
 const SITE_URL = 'https://app.verifyone.io';
 
@@ -61,7 +63,7 @@ const WEBSITE_JSONLD = JSON.stringify({
 });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
+  const shell = (
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -91,4 +93,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
+
+  if (clerkPublishableKeyConfigured()) {
+    return (
+      <ClerkProvider
+        signInUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || '/sign-in'}
+        signUpUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL || '/sign-up'}
+        signInFallbackRedirectUrl={process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || '/dashboard'}
+        signUpFallbackRedirectUrl={process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL || '/dashboard'}
+      >
+        {shell}
+      </ClerkProvider>
+    );
+  }
+  return shell;
 }
