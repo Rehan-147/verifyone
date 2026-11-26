@@ -318,6 +318,13 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
     return waiveReason === conditionReason;
   }
 
+  // certPending: a TrustedForm cert was supplied but cannot be verified right now.
+  // Pre-computed here (before the ladder) so the outer condition can exclude the waived case,
+  // allowing the ladder to fall through to quiet-hours / timezone checks when waived.
+  const tfStatus = checks.consent.trustedform?.status;
+  const certPending = checks.consent.declared && !!certUrl &&
+    (tfStatus === 'unconfigured' || tfStatus === 'error');
+
   if (!checks.valid_number) { decision = 'block'; reason = 'invalid_number'; risk = 90; }
   else if (internalDncError && !isWaived('internal_dnc_unavailable')) { decision = 'review'; reason = 'internal_dnc_unavailable'; risk = 60; }
   else if (internalDnc.listed) { decision = 'block'; reason = 'internal_dnc'; risk = 100; }
@@ -332,14 +339,19 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
   // full_stack asked the reassigned-number check and the source could not answer:
   // consents can go stale (number reassigned since consent) — human decides, no silent allow.
   else if (wantLiveHlr && reassigned.status === 'unavailable' && !isWaived('reassigned_check_unavailable')) { decision = 'review'; reason = 'reassigned_check_unavailable'; risk = 55; }
-  else if ((lineType === 'mobile' || lineType === 'voip' || lineType === 'unknown') && !checks.consent.sufficient_for_ai) {
-    const tfStatus = checks.consent.trustedform?.status;
-    if (checks.consent.declared && certUrl && (tfStatus === 'unconfigured' || tfStatus === 'error')) {
+  // FCC Feb 2024 AI rule: AI voice = artificial voice -> prior express WRITTEN consent.
+  // The outer condition excludes the waived-cert case so the ladder continues evaluating
+  // quiet-hours and timezone_unknown when consent_cert_unverified has been approved.
+  else if (
+    (lineType === 'mobile' || lineType === 'voip' || lineType === 'unknown') &&
+    !checks.consent.sufficient_for_ai &&
+    !(certPending && isWaived('consent_cert_unverified'))
+  ) {
+    if (certPending) {
       // A TrustedForm certificate was supplied but could not be verified right now —
       // escalate to a human instead of siding with either the claimant or the block.
-      if (!isWaived('consent_cert_unverified')) { decision = 'review'; reason = 'consent_cert_unverified'; risk = 60; }
+      decision = 'review'; reason = 'consent_cert_unverified'; risk = 60;
     } else {
-      // FCC Feb 2024 AI rule: AI voice = artificial voice -> prior express WRITTEN consent
       decision = 'block'; reason = 'ai_voice_consent_required'; risk = 70;
     }
   }

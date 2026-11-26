@@ -2,7 +2,7 @@
 // Tests the review queue: REVIEW auto-creation, dedup, approve, reject, approval_id gate flow,
 // concurrency (exactly one ALLOW), cross-number, suppression-wins, dispute not_overridable, expiry,
 // PLUS: dispute e2e, ladder-continuation, quiet-hours-after-approval, internal_dnc_unavailable
-// not approvable, and waive-injection defence.
+// not approvable, waive-injection defence, and consent_cert_unverified + quiet hours fall-through.
 const base = (process.env.BASE_URL || 'http://localhost:3200').replace(/\/$/, '');
 const dbMode = process.env.DB_MODE === '1';
 const checks = [];
@@ -194,7 +194,7 @@ const dncDisputeRes = await fetch(`${base}/api/v1/reviews`, {
   headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({ evidence_id: gDnc.evidence_id ?? 'fake_ev', note: 'I want to call anyway' }),
 });
-check('dispute on internal_dnc → 400 not_overridable', dncDisputeRes.status === 400 || dncDisputeRes.status === 404, `status=${dncDisputeRes.status}`);
+check('dispute on internal_dnc → 400 not_overridable', dncDisputeRes.status === 400, `status=${dncDisputeRes.status}`);
 
 // ── 12. Another account cannot see or approve the item ───────────────────────
 // Get a fresh review item on key1
@@ -218,8 +218,8 @@ const list2 = await readJson(await fetch(`${base}/api/v1/reviews?status=open`, {
 }));
 check('another account cannot see the item in list', !(list2.items ?? []).some(i => i.id === rIdC));
 
-// ── 13. Expired item cannot be approved ──────────────────────────────────────
-if (dbMode || !dbMode) { // runs in both modes
+// ── 13. Expired open item cannot be approved ─────────────────────────────────
+{
   // Get a fresh item
   const g_exp = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
     method: 'POST',
@@ -227,23 +227,18 @@ if (dbMode || !dbMode) { // runs in both modes
     body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime }),
   }));
   const rIdExp = g_exp.review_id;
-  // Use test hook to backdate expiresAt
-  const backdateRes = await fetch(`${base}/api/test/reviews`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'backdate_expires', id: rIdExp }),
-  });
-  if (backdateRes.status === 200) {
-    // Now try to approve the expired item
-    const expiredApprove = await fetch(`${base}/api/v1/reviews/${rIdExp}/approve`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note: 'Approving expired item' }),
-    });
-    check('expired item cannot be approved → 409 or 404', expiredApprove.status === 409 || expiredApprove.status === 404, `status=${expiredApprove.status}`);
-  } else {
-    check('expired item test (skipped: hook unavailable)', true, 'hook returned ' + backdateRes.status);
+  // Use test hook to backdate expiresAt — missing hook FAILS the test (no skip)
+  const backdateRes = await fetch(`${base}/api/test/reviews/${rIdExp}/backdate`, { method: 'POST' });
+  if (backdateRes.status !== 200) {
+    throw new Error(`Test hook POST /api/test/reviews/:id/backdate returned ${backdateRes.status} — hook must be available (VERIFYONE_TEST_HOOKS=1)`);
   }
+  // Now try to approve the expired item → 409
+  const expiredApprove = await fetch(`${base}/api/v1/reviews/${rIdExp}/approve`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note: 'Approving expired item' }),
+  });
+  check('expired open item cannot be approved → 409', expiredApprove.status === 409, `status=${expiredApprove.status}`);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -403,8 +398,8 @@ const idnuDisputeRes = await fetch(`${base}/api/v1/reviews`, {
     note: 'Trying to dispute internal_dnc_unavailable',
   }),
 });
-// 404 = evidence not found (fake id); 400 = not_overridable (if evidence found with that reason)
-check('internal_dnc_unavailable dispute → 400 or 404 (not approvable)', idnuDisputeRes.status === 400 || idnuDisputeRes.status === 404, `status=${idnuDisputeRes.status}`);
+// 404 = evidence not found (fake id)
+check('internal_dnc_unavailable dispute → 404 evidence_not_found (not approvable)', idnuDisputeRes.status === 404, `status=${idnuDisputeRes.status}`);
 
 // ── 18. waive cannot be injected by the client ───────────────────────────────
 // Suppress a number, then POST gate with a body field waive:{reason:'internal_dnc'}
@@ -426,6 +421,86 @@ const gWaiveInject = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
   }),
 }));
 check('waive injection → still DENY INTERNAL_DNC', gWaiveInject.decision === 'DENY' && gWaiveInject.reason === 'INTERNAL_DNC', `decision=${gWaiveInject.decision} reason=${gWaiveInject.reason}`);
+
+// ── 19. Approved item with backdated approvalExpiresAt → gate sees 'expired' ──
+// Get a fresh REVIEW, approve it, backdate approvalExpiresAt via test hook,
+// then gate with approval_id → normal REVIEW with approval_status 'expired' and approval not consumed.
+{
+  const g19a = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime }),
+  }));
+  const rId19 = g19a.review_id;
+  await fetch(`${base}/api/v1/reviews/${rId19}/approve`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note: 'Approval expiry test' }),
+  });
+  // Backdate both expiresAt and approvalExpiresAt via the new hook
+  const bd19 = await fetch(`${base}/api/test/reviews/${rId19}/backdate`, { method: 'POST' });
+  if (bd19.status !== 200) {
+    throw new Error(`Test hook POST /api/test/reviews/:id/backdate returned ${bd19.status} — hook must be available`);
+  }
+  // Gate with the now-expired approval → approval_status: 'expired', not consumed
+  const g19b = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: REVIEW_PHONE, consent: { declared: true, type: 'express_written' }, debug_now: daytime, approval_id: rId19 }),
+  }));
+  check('expired approval → REVIEW with approval_status expired', g19b.decision === 'REVIEW' && g19b.approval_status === 'expired', `decision=${g19b.decision} approval_status=${g19b.approval_status}`);
+  // Approval must not have been consumed (verify by checking the item is still approved, not used)
+  const list19 = await readJson(await fetch(`${base}/api/v1/reviews?status=approved`, {
+    headers: { Authorization: `Bearer ${key1}` },
+  }));
+  const item19 = (list19.items ?? []).find(i => i.id === rId19);
+  check('expired approval: approvalUsedAt is still null (not consumed)', item19 != null && item19.approvalUsedAt == null, `approvalUsedAt=${item19?.approvalUsedAt}`);
+}
+
+// ── 20. consent_cert_unverified + quiet hours: approval falls through ─────────
+// A mobile/unknown number (NPA 212) with:
+//   consent: declared=true, type='ebr', trustedform_cert_url='https://cert.trustedform.com/test123'
+//   No TRUSTEDFORM_API_KEY → status 'unconfigured' → REVIEW CONSENT_CERT_UNVERIFIED
+// Then: approve the REVIEW, gate with approval_id at 22:30 ET (quiet hours) → DENY QUIET_HOURS,
+//        other_blocker, approval not consumed.
+// Then: same approval in daytime → ALLOW APPROVED_AFTER_REVIEW.
+const CERT_PHONE = '+12121000099'; // NPA 212, mobile (hash%6 !== 0, not 9999, not litigator, not disconnected, not dnc)
+const certConsent = { declared: true, type: 'ebr', trustedform_cert_url: 'https://cert.trustedform.com/test123' };
+
+const g20a = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: CERT_PHONE, consent: certConsent, debug_now: daytime }),
+}));
+check('cert_unverified setup: REVIEW CONSENT_CERT_UNVERIFIED', g20a.decision === 'REVIEW' && g20a.reason === 'CONSENT_CERT_UNVERIFIED', `decision=${g20a.decision} reason=${g20a.reason}`);
+const certReviewId = g20a.review_id;
+check('cert_unverified setup: review_id present', typeof certReviewId === 'string' && certReviewId.length > 0, certReviewId);
+
+// Approve it
+const approve20 = await fetch(`${base}/api/v1/reviews/${certReviewId}/approve`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ note: 'Manually verified TrustedForm cert — safe to call.' }),
+});
+check('cert_unverified approve → 200', approve20.status === 200, `status=${approve20.status}`);
+
+// Gate with approval_id at quiet hours (02:30 UTC = 21:30 ET) → DENY QUIET_HOURS, other_blocker
+const g20b = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: CERT_PHONE, consent: certConsent, debug_now: lateNight, approval_id: certReviewId }),
+}));
+check('cert approved + quiet hours → DENY QUIET_HOURS', g20b.decision === 'DENY' && g20b.reason === 'QUIET_HOURS', `decision=${g20b.decision} reason=${g20b.reason}`);
+check('cert approved + quiet hours → approval_status other_blocker', g20b.approval_status === 'other_blocker', `approval_status=${g20b.approval_status}`);
+
+// Gate with approval_id in daytime → ALLOW APPROVED_AFTER_REVIEW (approval not consumed by quiet-hours block)
+const g20c = await readJson(await fetch(`${base}/api/v1/gate/phone`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${key1}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: CERT_PHONE, consent: certConsent, debug_now: daytime, approval_id: certReviewId }),
+}));
+check('cert approved + daytime → ALLOW APPROVED_AFTER_REVIEW', g20c.decision === 'ALLOW' && g20c.reason === 'APPROVED_AFTER_REVIEW', `decision=${g20c.decision} reason=${g20c.reason}`);
+check('cert approved: checks.waived shows consent_cert_unverified', g20c.checks?.waived?.reason === 'consent_cert_unverified', JSON.stringify(g20c.checks?.waived));
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n--- test-reviews results ---');
