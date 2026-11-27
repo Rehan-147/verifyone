@@ -178,6 +178,31 @@ model BulkRow {
   @@unique([jobId, rowIndex])
 }
 
+model ReviewItem {
+  id                    String    @id @default(cuid())
+  ownerKey              String
+  kind                  String    // 'review' | 'dispute'
+  gateEvidenceId        String
+  phoneHash             String
+  phoneMasked           String
+  phoneEncrypted        String?
+  reason                String    // internal reason
+  publicReason          String
+  status                String    @default("open") // 'open'|'approved'|'rejected'|'expired'
+  createdAt             DateTime  @default(now())
+  expiresAt             DateTime
+  resolvedAt            DateTime?
+  resolvedBy            String?
+  note                  String?
+  resolutionEvidenceId  String?
+  approvalExpiresAt     DateTime?
+  approvalUsedAt        DateTime?
+  approvalUsedEvidenceId String?
+
+  @@index([ownerKey, status, createdAt])
+  @@index([ownerKey, phoneHash])
+}
+
 model SuppressionEntry {
   id               String    @id @default(cuid())
   ownerKey         String

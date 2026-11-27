@@ -26,6 +26,11 @@ import { NPA } from './data/npa';
 import { STATE_CALLING_RULES } from './data/state-calling-rules';
 import { isSuppressed } from './suppression';
 import { ownerKeyFor } from './platform-credentials';
+import { APPROVABLE_REVIEW_REASONS, DISPUTEABLE_DENY_REASONS } from './reviews';
+
+// The set of reasons that a waiver may legitimately skip (defence in depth).
+// If a waive.reason is not in this set it is silently ignored.
+const WAIVABLE_REASONS = new Set([...APPROVABLE_REVIEW_REASONS, ...DISPUTEABLE_DENY_REASONS]);
 
 export type GateChecks = {
   valid_number: boolean;
@@ -57,6 +62,8 @@ export type GateChecks = {
     state?: string;
     reason?: 'timezone_unknown';
   };
+  /** Set when a waiver was applied to skip exactly one condition. */
+  waived?: { reason: string; approval_id: string };
 };
 
 export type GateResult = {
@@ -184,6 +191,14 @@ export type GateInput = {
   profile?: GateProfile;
   live_hlr?: boolean;
   ownerKey?: string | null;
+  /**
+   * When set by an authenticated approval path, the ladder treats ONLY this one
+   * condition as already-passed and continues evaluating every other condition
+   * in normal order. Ignored if reason is not in APPROVABLE_REVIEW_REASONS ∪
+   * DISPUTEABLE_DENY_REASONS (defence in depth — clients cannot inject a waiver).
+   * The approval_id is recorded in checks.waived for the audit trail.
+   */
+  waive?: { reason: string; approval_id: string };
 };
 
 export async function runPhoneGate(input: GateInput): Promise<GateResult & { checks: GateChecks; mode: string; degraded: boolean; profile: GateProfile; upstream_live: boolean; data_sources: import('./data-sources').DataSourceReceipt[] }> {
@@ -292,12 +307,30 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
   let risk = 0;
   let degraded = up.source === 'mock_fallback' || lineType === 'unknown';
 
+  // ── Waiver (approval path only) ─────────────────────────────────────────────
+  // When gate-service passes `waive`, the ladder skips ONLY that one condition.
+  // The waive reason must be in WAIVABLE_REASONS; anything else is silently
+  // ignored so clients cannot inject a waiver via the request body.
+  const waiveReason = input.waive && WAIVABLE_REASONS.has(input.waive.reason) ? input.waive.reason : null;
+
+  // Helper: returns true if this condition should be treated as passed.
+  function isWaived(conditionReason: string): boolean {
+    return waiveReason === conditionReason;
+  }
+
+  // certPending: a TrustedForm cert was supplied but cannot be verified right now.
+  // Pre-computed here (before the ladder) so the outer condition can exclude the waived case,
+  // allowing the ladder to fall through to quiet-hours / timezone checks when waived.
+  const tfStatus = checks.consent.trustedform?.status;
+  const certPending = checks.consent.declared && !!certUrl &&
+    (tfStatus === 'unconfigured' || tfStatus === 'error');
+
   if (!checks.valid_number) { decision = 'block'; reason = 'invalid_number'; risk = 90; }
-  else if (internalDncError) { decision = 'review'; reason = 'internal_dnc_unavailable'; risk = 60; }
+  else if (internalDncError && !isWaived('internal_dnc_unavailable')) { decision = 'review'; reason = 'internal_dnc_unavailable'; risk = 60; }
   else if (internalDnc.listed) { decision = 'block'; reason = 'internal_dnc'; risk = 100; }
-  else if (disconnected) { decision = 'block'; reason = 'disconnected'; risk = 85; }
+  else if (disconnected && !isWaived('disconnected')) { decision = 'block'; reason = 'disconnected'; risk = 85; }
   // Litigator trap before DNC — professional TCPA plaintiffs are the highest agency risk.
-  else if (litigator.hit) { decision = 'block'; reason = 'litigator_list'; risk = 100; }
+  else if (litigator.hit && !isWaived('litigator_list')) { decision = 'block'; reason = 'litigator_list'; risk = 100; }
   else if (reassigned.reassigned && !checks.consent.declared) { decision = 'block'; reason = 'reassigned_number_consent_required'; risk = 80; }
   else if (dnc.listed && !checks.consent.declared) { decision = 'block'; reason = 'do_not_call_no_consent'; risk = 75; }
   else if (wantLiveHlr && !allowDevMocks() && lineType === 'unknown') { decision = 'block'; reason = 'gate_unavailable_fail_closed'; risk = 95; }
@@ -305,22 +338,32 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
   else if (certUrl && trustedform.status === 'invalid') { decision = 'block'; reason = 'consent_cert_invalid'; risk = 85; }
   // full_stack asked the reassigned-number check and the source could not answer:
   // consents can go stale (number reassigned since consent) — human decides, no silent allow.
-  else if (wantLiveHlr && reassigned.status === 'unavailable') { decision = 'review'; reason = 'reassigned_check_unavailable'; risk = 55; }
-  else if ((lineType === 'mobile' || lineType === 'voip' || lineType === 'unknown') && !checks.consent.sufficient_for_ai) {
-    const tfStatus = checks.consent.trustedform?.status;
-    if (checks.consent.declared && certUrl && (tfStatus === 'unconfigured' || tfStatus === 'error')) {
+  else if (wantLiveHlr && reassigned.status === 'unavailable' && !isWaived('reassigned_check_unavailable')) { decision = 'review'; reason = 'reassigned_check_unavailable'; risk = 55; }
+  // FCC Feb 2024 AI rule: AI voice = artificial voice -> prior express WRITTEN consent.
+  // The outer condition excludes the waived-cert case so the ladder continues evaluating
+  // quiet-hours and timezone_unknown when consent_cert_unverified has been approved.
+  else if (
+    (lineType === 'mobile' || lineType === 'voip' || lineType === 'unknown') &&
+    !checks.consent.sufficient_for_ai &&
+    !(certPending && isWaived('consent_cert_unverified'))
+  ) {
+    if (certPending) {
       // A TrustedForm certificate was supplied but could not be verified right now —
       // escalate to a human instead of siding with either the claimant or the block.
       decision = 'review'; reason = 'consent_cert_unverified'; risk = 60;
     } else {
-      // FCC Feb 2024 AI rule: AI voice = artificial voice -> prior express WRITTEN consent
       decision = 'block'; reason = 'ai_voice_consent_required'; risk = 70;
     }
   }
   else if (hours.applicable && hours.allowed === false) { decision = 'block'; reason = hours.window_source === 'federal' ? 'quiet_hours' : 'state_quiet_hours'; risk = 40; }
-  else if (hours.applicable && hours.allowed === null) { decision = 'review'; reason = 'timezone_unknown'; risk = 45; }
+  else if (hours.applicable && hours.allowed === null && !isWaived('timezone_unknown')) { decision = 'review'; reason = 'timezone_unknown'; risk = 45; }
   else if (dnc.listed) { reason = 'dnc_but_consent_on_file'; risk = 20; }
   else if (lineType === 'landline') { reason = 'cleared_landline'; risk = 5; }
+
+  // Record waiver in checks for audit trail (only if a waiver was actually used in the path)
+  if (waiveReason && input.waive) {
+    checks.waived = { reason: waiveReason, approval_id: input.waive.approval_id };
+  }
 
   const data_sources = buildDataSourceReceipts({ upstream_live, telnyx_configured: !!process.env.TELNYX_API_KEY });
   if (certUrl) {

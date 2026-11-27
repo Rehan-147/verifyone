@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await runPhoneGateDecision(
-    { ...body, ownerKey: acc ? ownerKeyFor(acc) : null },
+    { ...body, ownerKey: acc ? ownerKeyFor(acc) : null, approval_id: typeof body.approval_id === 'string' ? body.approval_id : null },
     profile,
     gateTimeoutMs,
   );
@@ -180,6 +180,9 @@ export async function POST(req: NextRequest) {
       usage,
       bundle: { profile, credits_charged: result.reason === 'gate_unavailable_fail_closed' || result.reason === 'fail_open_gate_unavailable' ? 0 : bundleCredits, label: 'AI Outbound Shield Suite' },
       ...(creditsLeft !== undefined ? { credits_left: creditsLeft } : {}),
+      ...('review_id' in result && result.review_id ? { review_id: result.review_id } : {}),
+      ...('approval_status' in result && result.approval_status ? { approval_status: result.approval_status } : {}),
+      ...('retry_after_seconds' in result && result.retry_after_seconds != null ? { retry_after_seconds: result.retry_after_seconds } : {}),
       audit: { persistence, chain: 'sha256-hash-chained', verify_url: `/api/v1/gate/audit/${evidence.evidence_id}` },
     },
     { headers: CORS },

@@ -20,7 +20,8 @@ export type PublicReason =
   | 'TIMEZONE_UNKNOWN'
   | 'DISCONNECTED'
   | 'INVALID_NUMBER'
-  | 'GATE_UNAVAILABLE' | 'REGISTRY_UNAVAILABLE';
+  | 'GATE_UNAVAILABLE' | 'REGISTRY_UNAVAILABLE'
+  | 'APPROVED_AFTER_REVIEW';
 
 export type PublicGatePayload = {
   decision: PublicDecision;
@@ -86,6 +87,8 @@ export function toPublicReason(
     case 'gate_unavailable_fail_closed':
     case 'fail_open_gate_unavailable':
       return 'GATE_UNAVAILABLE';
+    case 'approved_after_review':
+      return 'APPROVED_AFTER_REVIEW';
     case 'cleared':
     case 'cleared_landline':
     case 'dnc_but_consent_on_file':

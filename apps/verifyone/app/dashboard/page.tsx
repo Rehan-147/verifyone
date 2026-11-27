@@ -135,6 +135,12 @@ export default async function DashboardPage() {
               Manage your organization&apos;s internal suppression list, CSV imports, and opt-outs.
             </p>
           </Link>
+          <Link href="/dashboard/reviews" className="dp-card p-6 hover:border-accent/40 transition-colors">
+            <h2 className="font-bold text-base text-ink font-display mb-1">Review Queue →</h2>
+            <p className="text-xs text-ink-secondary leading-relaxed">
+              Approve or reject held leads (REVIEW decisions) and dispute wrong data-source blocks.
+            </p>
+          </Link>
           <Link href="/docs" className="dp-card p-6 hover:border-accent/40 transition-colors">
             <h2 className="font-bold text-base text-ink font-display mb-1">API documentation →</h2>
             <p className="text-xs text-ink-secondary leading-relaxed">
