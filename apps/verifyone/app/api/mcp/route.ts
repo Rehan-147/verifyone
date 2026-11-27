@@ -7,6 +7,7 @@ import { ownerKeyFor } from '../../../lib/platform-credentials';
 // Calls the gate + validators in-process (no HTTP self-fetch, no APP_URL needed).
 import { NextRequest, NextResponse } from 'next/server'
 import { runPhoneGate, runEmailGate } from '../../../lib/gate'
+import { applyAttemptReservation } from '../../../lib/gate-service'
 import { sealEvidence, checkAndBumpQuota } from '../../../lib/audit-store'
 import { meter, creditsAvailable } from '../../../lib/auth'
 import { validatePhone, verifyEmail, ipLookup } from '../../../lib/validators'
@@ -57,7 +58,10 @@ export async function POST(req: NextRequest) {
         case 'verifyone_pre_dial_gate': // additive alias — same handler as check_call_allowed
         case 'check_call_allowed': {
           const profile = resolveGateProfile(args)
-          const gate = await runPhoneGate({ phone: args.phone, channel: args.channel === 'sms' ? 'sms' : 'voice', consent: args.consent, profile, live_hlr: args.live_hlr === true, ownerKey: acc ? ownerKeyFor(acc) : null })
+          const mcpOwnerKey = acc ? ownerKeyFor(acc) : null
+          const gate = await runPhoneGate({ phone: args.phone, channel: args.channel === 'sms' ? 'sms' : 'voice', consent: args.consent, profile, live_hlr: args.live_hlr === true, ownerKey: mcpOwnerKey })
+          // Agents ask this right before dialing, so an ALLOW counts as a call attempt unless count_attempt is false.
+          if (args.count_attempt !== false) await applyAttemptReservation(gate, { ownerKey: mcpOwnerKey, phone: String(args.phone), source: 'mcp' })
           const { evidence } = await sealEvidence({ phone: args.phone, channel: args.channel === 'sms' ? 'sms' : 'voice', consent: args.consent ?? { declared: false, type: 'none' }, decision: gate.decision, reason: gate.reason, checks: gate.checks, callerKey: acc?.email || 'ip:' + clientIp(req) })
           result = formatPublicGateResponse(gate, { evidence_id: evidence.evidence_id, profile, live_hlr: profile === 'full_stack', upstream_live: gate.upstream_live })
           break

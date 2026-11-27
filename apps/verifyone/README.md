@@ -108,6 +108,7 @@ Post: HubSpot contact webhook writes verifyone_status/reason/evidence_id back
 | Litigator scrub | **shell** | feed vendor (Blacklist Alliance / DNC.com / RealValidation) → `LITIGATOR_REGISTRY_URL` | `.data/litigators.txt` currently empty — set must be populated |
 | Reassigned (RNDB) | **live (adapter)** | `RNDB_API_KEY`+`RNDB_API_URL`, or `TWILIO_ACCOUNT_SID`+`TWILIO_AUTH_TOKEN` (Lookup v2 `reassigned_number` field) | unavailable-on-purpose otherwise; `review` decision covers stale consent |
 | Consent | **declared + cert verify** | `TRUSTEDFORM_API_KEY` (+ optional `TRUSTEDFORM_API_URL`) verified on `full_stack` profile | without key = customer-declared only |
+| Call-frequency caps | **live** | Florida 3 calls / 24 h (Fla. Stat. § 501.616(6)(b), verified 2026-11-27) + optional per-organization `callCap24h`; attempts recorded by gate ALLOWs (`count_attempt` default true), MCP checks and dial-through (released if the platform fails); bulk/batch never count | Counts per customer across campaigns (stricter than "same subject matter"); Oklahoma/Maryland pending counsel review; ledger error → REVIEW `FREQUENCY_CHECK_UNAVAILABLE` |
 | Internal suppression | **live** | Opt-outs (`outcome: opt_out`), `/api/v1/suppression`, lead-intake, and `/dashboard/suppression` feed `SuppressionEntry` (`.data/suppression.json` in file mode); gate checks `internal_dnc` first after valid-number | anonymous free-tier callers have no list |
 | State DNC lists | **absent** | phase 2 (vendor bundle or per-state) | |
 

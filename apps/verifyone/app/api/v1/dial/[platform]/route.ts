@@ -6,6 +6,7 @@ import { authenticate, creditsAvailable, meter, rateLimit } from '@/lib/auth';
 import { normalizePhone, sealEvidence } from '@/lib/audit-store';
 import { gateBundleCredits, resolveGateProfile } from '@/lib/credits';
 import { runPhoneGateDecision } from '@/lib/gate-service';
+import { releaseAttempt } from '@/lib/frequency';
 import { completeDialIdempotency, claimDialIdempotency, getPlatformCredential, ownerKeyFor, releaseDialIdempotency, type CredentialDefaults, type VoicePlatform } from '@/lib/platform-credentials';
 
 export const runtime = 'nodejs';
@@ -82,8 +83,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   catch (err) { return releaseAndError(err instanceof Error && err.message === 'credentials_key_missing' ? 'credentials_key_missing' : 'persistence_unavailable', 503); }
   if (!credential) return releaseAndError('platform_not_connected', 400);
 
-  const gateBody = { ...body, phone, mode: 'fail_closed', ownerKey };
+  const gateBody = { ...body, phone, mode: 'fail_closed', ownerKey, count_attempt: true, attempt_source: 'dial' as const };
   const result = await runPhoneGateDecision(gateBody, profile, profile === 'full_stack' ? 800 : 95);
+  const attemptId = (result as { _attemptId?: string })._attemptId;
+  // Any failure before the platform call means no call was placed: give the attempt back.
+  const failBeforeDial = async (error: string, status: number) => {
+    await releaseAttempt(attemptId).catch(() => undefined);
+    return releaseAndError(error, status);
+  };
   let gateEvidenceId: string;
   try {
     const sealed = await sealEvidence({
@@ -97,13 +104,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
     gateEvidenceId = sealed.evidence.evidence_id;
   } catch {
-    return releaseAndError('persistence_unavailable', 503);
+    return failBeforeDial('persistence_unavailable', 503);
   }
   if (!unavailableReasons.has(result.reason)) {
     let debit;
     try { debit = await meter(acc, cost, `/api/v1/dial/${platform}:${profile}`); }
-    catch { return releaseAndError('persistence_unavailable', 503); }
-    if (!debit.metered) return releaseAndError('insufficient_credits', 402);
+    catch { return failBeforeDial('persistence_unavailable', 503); }
+    if (!debit.metered) return failBeforeDial('insufficient_credits', 402);
     if (debit.race) console.warn('[billing] credit debit race after dial gate decision', { email: acc.email, cost });
   }
 
@@ -146,6 +153,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       if (typeof id === 'string' && id) { callId = id; status = 200; dialReason = 'dial_placed'; }
     }
   } catch { /* Never expose provider errors or key-bearing bodies. */ }
+
+  // The platform did not place the call, so it must not count toward the frequency cap.
+  if (dialReason !== 'dial_placed') {
+    await releaseAttempt(attemptId).catch(() => undefined);
+  }
 
   const dialEvidence = await sealEvidence({
     phone,

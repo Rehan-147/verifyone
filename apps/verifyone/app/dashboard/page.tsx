@@ -141,6 +141,12 @@ export default async function DashboardPage() {
               Approve or reject held leads (REVIEW decisions) and dispute wrong data-source blocks.
             </p>
           </Link>
+          <Link href="/dashboard/settings" className="dp-card p-6 hover:border-accent/40 transition-colors">
+            <h2 className="font-bold text-base text-ink font-display mb-1">Call frequency →</h2>
+            <p className="text-xs text-ink-secondary leading-relaxed">
+              Cap how often you call the same number per 24 hours. State limits (e.g. Florida) always apply.
+            </p>
+          </Link>
           <Link href="/docs" className="dp-card p-6 hover:border-accent/40 transition-colors">
             <h2 className="font-bold text-base text-ink font-display mb-1">API documentation →</h2>
             <p className="text-xs text-ink-secondary leading-relaxed">

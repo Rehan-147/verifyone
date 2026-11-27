@@ -73,6 +73,17 @@ export const DATA_SOURCE_CATALOG: DataSourceDef[] = [
     limitation: 'State rules pending counsel review; Sunday/holiday restrictions are not implemented.',
   },
   {
+    id: 'frequency_caps',
+    check: 'call_frequency',
+    vendor: 'VerifyOne call-attempt ledger',
+    ingest: 'derived',
+    refresh_sla: 'real-time',
+    what_it_does: 'Counts this customer\'s call attempts to the same number in a rolling 24 hours and blocks once a state limit (Florida: 3, Fla. Stat. § 501.616(6)(b)) or the customer\'s own account cap is reached.',
+    coverage: 'Authenticated customers. Attempts are recorded by gate ALLOWs (unless count_attempt is false), MCP checks and dial-through calls; bulk audits and batch checks never count.',
+    failure_behavior: 'Ledger read/write error for an authenticated caller → REVIEW (FREQUENCY_CHECK_UNAVAILABLE, retry); limit reached → DENY (STATE_FREQUENCY_CAP / FREQUENCY_CAP). Never a silent ALLOW and never overridable.',
+    limitation: 'Counts per customer across all campaigns (stricter than "same subject matter"); only verified state rules are enforced — Oklahoma and others pending counsel review.',
+  },
+  {
     id: 'e164',
     check: 'valid_number',
     vendor: 'E.164 normalization',
