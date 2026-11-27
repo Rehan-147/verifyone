@@ -206,6 +206,7 @@ export function buildDataSourceReceipts(opts?: { upstream_live?: boolean; telnyx
       fix_hint: h.litigator.ready ? undefined : 'Vendor export (Blacklist Alliance / DNC.com / RealValidation) → .data/litigators.txt, or set LITIGATOR_REGISTRY_URL.',
     },
     { id: 'quiet_hours', vendor: 'NPA timezone map', status: 'derived' },
+    { id: 'frequency_caps', vendor: 'VerifyOne call-attempt ledger', status: 'derived' },
     { id: 'e164', vendor: 'E.164 normalization', status: 'derived' },
     {
       id: 'telnyx_hlr',

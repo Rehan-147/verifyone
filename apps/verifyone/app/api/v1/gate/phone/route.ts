@@ -84,7 +84,14 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await runPhoneGateDecision(
-    { ...body, ownerKey: acc ? ownerKeyFor(acc) : null, approval_id: typeof body.approval_id === 'string' ? body.approval_id : null },
+    {
+      ...body,
+      ownerKey: acc ? ownerKeyFor(acc) : null,
+      approval_id: typeof body.approval_id === 'string' ? body.approval_id : null,
+      // An ALLOW counts as a call attempt for frequency caps unless the caller says it is only a pre-check.
+      count_attempt: body.count_attempt !== false,
+      attempt_source: 'gate',
+    },
     profile,
     gateTimeoutMs,
   );

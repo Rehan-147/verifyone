@@ -27,6 +27,7 @@ import { STATE_CALLING_RULES } from './data/state-calling-rules';
 import { isSuppressed } from './suppression';
 import { ownerKeyFor } from './platform-credentials';
 import { APPROVABLE_REVIEW_REASONS, DISPUTEABLE_DENY_REASONS } from './reviews';
+import { evaluateFrequency, type FrequencyCheck } from './frequency';
 
 // The set of reasons that a waiver may legitimately skip (defence in depth).
 // If a waive.reason is not in this set it is silently ignored.
@@ -64,6 +65,8 @@ export type GateChecks = {
   };
   /** Set when a waiver was applied to skip exactly one condition. */
   waived?: { reason: string; approval_id: string };
+  /** Call attempts to this number by this customer in the rolling window, and the binding cap. */
+  frequency?: FrequencyCheck;
 };
 
 export type GateResult = {
@@ -274,6 +277,18 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
   const reassigned = await reassignedFor(n, wantLiveHlr);
   const hours = callingHoursFor(n, now);
 
+  // Frequency caps (state law + optional customer cap). A read failure for an authenticated
+  // caller must never become a silent ALLOW: it is held as REVIEW below.
+  let frequency: FrequencyCheck = { evaluated: false, attempts_24h: 0, limit: null, source: null, exceeded: false };
+  let frequencyError = false;
+  if (input.ownerKey && /^\+\d{7,15}$/.test(n)) {
+    try {
+      frequency = await evaluateFrequency(input.ownerKey, n);
+    } catch {
+      frequencyError = true;
+    }
+  }
+
   const checks: GateChecks = {
     valid_number: /^\+\d{7,15}$/.test(n),
     internal_dnc: internalDnc,
@@ -296,6 +311,7 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
         : undefined,
     },
     calling_hours: hours as GateChecks['calling_hours'],
+    frequency,
   };
 
   // Failure mode: fail_closed (default) = if the gate itself fails/times out, BLOCK (safe).
@@ -356,6 +372,9 @@ export async function runPhoneGate(input: GateInput): Promise<GateResult & { che
     }
   }
   else if (hours.applicable && hours.allowed === false) { decision = 'block'; reason = hours.window_source === 'federal' ? 'quiet_hours' : 'state_quiet_hours'; risk = 40; }
+  // Frequency caps are never waivable: a state cap is law, and a customer cap is the customer's own rule.
+  else if (frequency.exceeded) { decision = 'block'; reason = frequency.source?.startsWith('state:') ? 'state_frequency_cap' : 'frequency_cap'; risk = 50; }
+  else if (frequencyError) { decision = 'review'; reason = 'frequency_check_unavailable'; risk = 55; }
   else if (hours.applicable && hours.allowed === null && !isWaived('timezone_unknown')) { decision = 'review'; reason = 'timezone_unknown'; risk = 45; }
   else if (dnc.listed) { reason = 'dnc_but_consent_on_file'; risk = 20; }
   else if (lineType === 'landline') { reason = 'cleared_landline'; risk = 5; }

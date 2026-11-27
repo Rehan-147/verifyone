@@ -16,6 +16,9 @@ model Organization {
   credits      Int            @default(1000)
   billingEmail String?
   disabledAt   DateTime?
+  /// Optional customer-set limit on call attempts to the same number per rolling 24 hours.
+  /// Null = no customer cap (state rules still apply).
+  callCap24h   Int?
   apiKeys      ApiKey[]
   creditLedger CreditLedger[]
   createdAt    DateTime       @default(now())
@@ -222,4 +225,17 @@ model SuppressionEntry {
   removeEvidenceId String?
 
   @@index([ownerKey, phoneHash])
+}
+
+/// One row per outbound call attempt counted against frequency caps
+/// (a gate ALLOW with count_attempt, or a dial-through call). Only the phone hash is stored.
+model CallAttempt {
+  id        String   @id @default(cuid())
+  ownerKey  String
+  phoneHash String
+  source    String
+  createdAt DateTime @default(now())
+
+  @@index([ownerKey, phoneHash, createdAt])
+  @@index([createdAt])
 }

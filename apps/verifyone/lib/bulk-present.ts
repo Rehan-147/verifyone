@@ -63,6 +63,7 @@ const RISK_CATEGORIES = [
   ['reassigned', new Set(['reassigned_number_consent_required'])],
   ['disconnected', new Set(['disconnected'])],
   ['quiet_hours_now', new Set(['quiet_hours', 'state_quiet_hours'])],
+  ['frequency_capped', new Set(['frequency_cap', 'state_frequency_cap'])],
 ] as const;
 
 function percent(count: number, total: number) {

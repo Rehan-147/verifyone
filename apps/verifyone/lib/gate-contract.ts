@@ -18,6 +18,9 @@ export type PublicReason =
   | 'QUIET_HOURS'
   | 'STATE_QUIET_HOURS'
   | 'TIMEZONE_UNKNOWN'
+  | 'STATE_FREQUENCY_CAP'
+  | 'FREQUENCY_CAP'
+  | 'FREQUENCY_CHECK_UNAVAILABLE'
   | 'DISCONNECTED'
   | 'INVALID_NUMBER'
   | 'GATE_UNAVAILABLE' | 'REGISTRY_UNAVAILABLE'
@@ -78,6 +81,12 @@ export function toPublicReason(
       return 'STATE_QUIET_HOURS';
     case 'timezone_unknown':
       return 'TIMEZONE_UNKNOWN';
+    case 'state_frequency_cap':
+      return 'STATE_FREQUENCY_CAP';
+    case 'frequency_cap':
+      return 'FREQUENCY_CAP';
+    case 'frequency_check_unavailable':
+      return 'FREQUENCY_CHECK_UNAVAILABLE';
     case 'disconnected':
       return 'DISCONNECTED';
     case 'invalid_number':
