@@ -51,6 +51,17 @@ export default function ToolPage({ params }: { params: { slug: string } }) {
           <ToolChecker type={tool.inputType} toolTitle={tool.title} />
         </div>
 
+        {/* Free list scan CTA */}
+        <section className="mb-16 dp-card p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-base font-bold text-ink font-display mb-1">Calling a whole list with an AI agent?</h2>
+            <p className="text-sm text-ink-secondary">
+              Upload it for a free pre-dial risk scan: litigators, DNC, consent and calling hours. No signup; numbers are not stored.
+            </p>
+          </div>
+          <Link href={`/scan?src=tools-${tool.slug}`} className="dp-btn-primary text-xs whitespace-nowrap">Scan a list free</Link>
+        </section>
+
         {/* How It Works Section */}
         <section className="mb-16 rounded-panel border border-rule bg-ground-muted p-8">
           <h2 className="text-xl font-bold mb-4 text-ink font-display">How {tool.title} Works</h2>

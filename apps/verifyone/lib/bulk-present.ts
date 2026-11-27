@@ -55,7 +55,7 @@ export function resultsCsv(snapshot: BulkSnapshot) {
   return `${output.join('\r\n')}\r\n`;
 }
 
-const RISK_CATEGORIES = [
+export const RISK_CATEGORIES = [
   ['internal_dnc', new Set(['internal_dnc'])],
   ['litigator_hits', new Set(['litigator_list'])],
   ['dnc_listed_without_consent', new Set(['do_not_call_no_consent'])],
