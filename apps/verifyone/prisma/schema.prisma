@@ -239,3 +239,29 @@ model CallAttempt {
   @@index([ownerKey, phoneHash, createdAt])
   @@index([createdAt])
 }
+
+/// A free public list scan (no account). Only aggregate counts are kept — never phone numbers.
+/// ipHash is a salted SHA-256 of the client IP, used for the per-IP daily limit.
+model PublicScan {
+  id        String   @id @default(cuid())
+  ipHash    String
+  rowCount  Int
+  summary   Json
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
+}
+
+/// Contact request left after a free scan. Stored only with explicit consent to be contacted.
+model ScanLead {
+  id               String   @id @default(cuid())
+  email            String
+  scanId           String?
+  consentToContact Boolean
+  ipHash           String
+  createdAt        DateTime @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+}

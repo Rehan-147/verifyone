@@ -108,8 +108,8 @@ export default function Hero() {
               contacts before they happen.
             </p>
             <div className="cta-group">
-              <Link href="/dashboard" className="cta-btn">Test the Pre-Dial Gate</Link>
-              <Link href="/dashboard" className="cta-link">
+              <Link href="/scan" className="cta-btn">Scan your call list free</Link>
+              <Link href="/sign-up" className="cta-link">
                 Get API Key
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M5 12h14" />

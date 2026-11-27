@@ -34,6 +34,7 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
   {
     title: 'Resources',
     links: [
+      { href: '/scan', label: 'Free list scan' },
       { href: '/guides/solo-ai-voice-outbound', label: 'Solo AI voice guide' },
       { href: '/docs', label: 'Documentation' },
       { href: '/data-sources', label: 'Data sources' },
