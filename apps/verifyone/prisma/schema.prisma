@@ -19,6 +19,8 @@ model Organization {
   /// Optional customer-set limit on call attempts to the same number per rolling 24 hours.
   /// Null = no customer cap (state rules still apply).
   callCap24h   Int?
+  /// Dodo subscription currently paying for this organization (set by subscription webhooks).
+  dodoSubscriptionId String? @unique
   apiKeys      ApiKey[]
   creditLedger CreditLedger[]
   createdAt    DateTime       @default(now())
@@ -264,4 +266,27 @@ model ScanLead {
 
   @@index([email])
   @@index([createdAt])
+}
+
+/// One row per Dodo webhook delivery (webhook-id is unique, so retries are processed once).
+/// Credits are granted at most once per Dodo payment: grantPaymentId is unique.
+model PaymentEvent {
+  id             String   @id @default(cuid())
+  webhookId      String   @unique
+  type           String
+  paymentId      String?
+  subscriptionId String?
+  orgId          String?
+  email          String?
+  plan           String?
+  credits        Int      @default(0)
+  /// Set only on the event that actually granted credits for a payment.
+  grantPaymentId String?  @unique
+  /// applied | unresolved | duplicate_payment | status_only | ignored
+  status         String
+  createdAt      DateTime @default(now())
+  resolvedAt     DateTime?
+
+  @@index([subscriptionId, status])
+  @@index([orgId, createdAt])
 }

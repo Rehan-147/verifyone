@@ -1,5 +1,5 @@
 // Plan tiers — single source for UI + Dodo checkout + webhooks.
-// Internal keys (STARTER|GROWTH|PRO) map to DODO_PRODUCT_* env vars.
+// Internal keys (LITE|STARTER|GROWTH|PRO) map to DODO_PRODUCT_* env vars.
 //
 // ⚠ PRE-LAUNCH (see DEPLOY.md checklist): the Dodo dashboard products must be
 // updated to match these prices/credits BEFORE live checkout is enabled.
@@ -8,6 +8,21 @@
 // normalizePlanKey keeps legacy aliases (AGENT/AGENCY/COMPLIANCE_PRO) working.
 
 export const PLANS = {
+  LITE: {
+    key: 'LITE' as const,
+    name: 'Lite',
+    tagline: 'Solo builders',
+    priceUsd: 99,
+    credits: 5_000,
+    shieldChecksMonthly: 5_000,
+    blurb: 'For solo AI voice builders trying VerifyOne on a first campaign.',
+    features: [
+      'Phone gate with core checks',
+      'Full API access',
+      'Internal opt-out list',
+      'Evidence records (audit trail)',
+    ],
+  },
   STARTER: {
     key: 'STARTER' as const,
     name: 'Starter',
@@ -58,11 +73,13 @@ export const PLANS = {
 
 export type PlanName = keyof typeof PLANS;
 
-export const PLAN_ORDER: PlanName[] = ['STARTER', 'GROWTH', 'PRO'];
+export const PLAN_ORDER: PlanName[] = ['LITE', 'STARTER', 'GROWTH', 'PRO'];
 
 export function normalizePlanKey(input: string): PlanName | null {
   const u = String(input || '').toUpperCase().replace(/-/g, '_');
   const aliases: Record<string, PlanName> = {
+    LITE: 'LITE',
+    SOLO: 'LITE',
     STARTER: 'STARTER',
     AGENT: 'STARTER',
     GROWTH: 'GROWTH',

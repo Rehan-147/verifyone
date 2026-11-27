@@ -21,7 +21,7 @@ export type Account = {
   keyHash: string;
   email: string;
   orgId?: string;
-  plan: 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
+  plan: 'FREE' | 'LITE' | 'STARTER' | 'GROWTH' | 'PRO';
   credits: number;
   createdAt: string;
   lastUsedAt?: string;
@@ -84,7 +84,7 @@ export async function findAccountByEmail(email: string): Promise<Account | null>
 
 // Grant a paid plan: sets plan, adds plan credits (renewals stack), creates the
 // account if the customer paid before ever signing up.
-export async function applyPlan(email: string, plan: 'FREE' | 'STARTER' | 'GROWTH' | 'PRO', credits: number) {
+export async function applyPlan(email: string, plan: Account['plan'], credits: number) {
   requirePersistentAccounts();
   if (dbReady()) return dbApplyPlan(email, plan, credits);
   await load();
