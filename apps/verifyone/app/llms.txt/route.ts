@@ -25,7 +25,7 @@ Decision mapping and full reference: /docs#decision-values
 
 ## Bundled metering (launch)
 profile ai_outbound_shield (default): 1 bundled credit = validity + litigator + DNC + consent + calling hours (local cache, sub-100ms target).
-profile full_stack: 3 credits, adds live HLR/carrier ping when TELNYX_API_KEY is set.
+profile full_stack: 5 credits, adds live carrier/line-type status (Telnyx) and the reassigned-number check.
 
 ## Voice platform workflows
 Vapi outbound: POST /api/v1/gate/phone first; call POST https://api.vapi.ai/call only on ALLOW.
