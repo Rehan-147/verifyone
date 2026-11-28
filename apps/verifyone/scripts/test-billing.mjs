@@ -17,7 +17,8 @@ function ok(cond, label, extra) {
 }
 
 async function req(path, opts = {}) {
-  const r = await fetch(BASE + path, { ...opts, signal: AbortSignal.timeout(30000) });
+  // Generous timeout: the first request to a route includes its dev-server compile.
+  const r = await fetch(BASE + path, { ...opts, signal: AbortSignal.timeout(120000) });
   return { status: r.status, body: await r.json().catch(() => ({})) };
 }
 
