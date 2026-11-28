@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticate, creditsAvailable, meter, rateLimit } from '@/lib/auth';
 import { normalizePhone, sealEvidence } from '@/lib/audit-store';
 import { gateBundleCredits, resolveGateProfile } from '@/lib/credits';
-import { runPhoneGateDecision } from '@/lib/gate-service';
+import { gateDeadlineMs, runPhoneGateDecision } from '@/lib/gate-service';
 import { releaseAttempt } from '@/lib/frequency';
 import { completeDialIdempotency, claimDialIdempotency, getPlatformCredential, ownerKeyFor, releaseDialIdempotency, type CredentialDefaults, type VoicePlatform } from '@/lib/platform-credentials';
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!credential) return releaseAndError('platform_not_connected', 400);
 
   const gateBody = { ...body, phone, mode: 'fail_closed', ownerKey, count_attempt: true, attempt_source: 'dial' as const };
-  const result = await runPhoneGateDecision(gateBody, profile, profile === 'full_stack' ? 800 : 95);
+  const result = await runPhoneGateDecision(gateBody, profile, gateDeadlineMs(profile));
   const attemptId = (result as { _attemptId?: string })._attemptId;
   // Any failure before the platform call means no call was placed: give the attempt back.
   const failBeforeDial = async (error: string, status: number) => {

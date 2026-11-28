@@ -71,6 +71,43 @@ export type PhoneGateBody = Record<string, unknown> & {
   attempt_source?: 'gate' | 'dial' | 'mcp';
 };
 
+// ── Latency target vs. hard deadline ──────────────────────────────────────
+// The latency TARGET is what we aim for and report (shield ~95 ms from local caches,
+// full_stack ~800 ms with live vendor lookups). The DEADLINE is when an unfinished gate
+// fails closed. They used to be the same number, so ordinary database latency (a hosted
+// Postgres round trip, a cold connection) turned valid calls into GATE_UNAVAILABLE.
+// The deadline stays bounded so a hung dependency still fails closed instead of hanging
+// the caller's dialer.
+export const GATE_LATENCY_TARGET_MS = { ai_outbound_shield: 95, full_stack: 800 } as const;
+const GATE_DEADLINE_DEFAULT_MS = { ai_outbound_shield: 2500, full_stack: 5000 } as const;
+const GATE_DEADLINE_MIN_MS = 250;
+const GATE_DEADLINE_MAX_MS = 10_000;
+
+export function gateLatencyTargetMs(profile: string): number {
+  return profile === 'full_stack' ? GATE_LATENCY_TARGET_MS.full_stack : GATE_LATENCY_TARGET_MS.ai_outbound_shield;
+}
+
+/** Fail-closed cutoff for one gate run. Override: GATE_DEADLINE_MS_SHIELD / GATE_DEADLINE_MS_FULL_STACK. */
+export function gateDeadlineMs(profile: string): number {
+  const full = profile === 'full_stack';
+  const raw = Number(process.env[full ? 'GATE_DEADLINE_MS_FULL_STACK' : 'GATE_DEADLINE_MS_SHIELD']);
+  const fallback = full ? GATE_DEADLINE_DEFAULT_MS.full_stack : GATE_DEADLINE_DEFAULT_MS.ai_outbound_shield;
+  if (!Number.isFinite(raw) || raw <= 0) return fallback;
+  return Math.min(GATE_DEADLINE_MAX_MS, Math.max(GATE_DEADLINE_MIN_MS, Math.round(raw)));
+}
+
+/** Test-only artificial slowness (simulates a slow database); ignored unless test hooks are on. */
+function testDelayMs(body: PhoneGateBody): number {
+  if (process.env.NODE_ENV === 'production' || process.env.VERIFYONE_TEST_HOOKS !== '1') return 0;
+  const v = Number(body.debug_delay_ms);
+  return Number.isFinite(v) && v > 0 ? Math.min(v, 15_000) : 0;
+}
+
+function withTestDelay<T>(body: PhoneGateBody, run: () => Promise<T>): Promise<T> {
+  const ms = testDelayMs(body);
+  return ms ? new Promise((r) => setTimeout(r, ms)).then(run) : run();
+}
+
 // The set of reasons that an approval can waive.
 const WAIVABLE_REASONS = new Set([...APPROVABLE_REVIEW_REASONS, ...DISPUTEABLE_DENY_REASONS]);
 
@@ -117,7 +154,7 @@ export async function runPhoneGateDecision(body: PhoneGateBody, profile: string,
       const waive = { reason: approval.reason, approval_id: approvalId };
 
       const gateResult = await Promise.race([
-        runPhoneGate({
+        withTestDelay(body, () => runPhoneGate({
           phone,
           channel: body.channel === 'sms' ? 'sms' : 'voice',
           consent: body.consent as { declared?: boolean; type?: 'express_written' | 'ebr' | 'none' },
@@ -127,7 +164,7 @@ export async function runPhoneGateDecision(body: PhoneGateBody, profile: string,
           live_hlr: body.live_hlr === true,
           ownerKey,
           waive,
-        }),
+        })),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('gate_timeout')), timeoutMs)),
       ]).catch(() => {
         if (body.mode === 'fail_open') {
@@ -241,7 +278,7 @@ export async function runPhoneGateDecision(body: PhoneGateBody, profile: string,
 
   // ── Normal gate run (no approval waiver) ──────────────────────────────────
   const result = await Promise.race([
-    runPhoneGate({
+    withTestDelay(body, () => runPhoneGate({
       phone,
       channel: body.channel === 'sms' ? 'sms' : 'voice',
       consent: body.consent as { declared?: boolean; type?: 'express_written' | 'ebr' | 'none' },
@@ -250,7 +287,7 @@ export async function runPhoneGateDecision(body: PhoneGateBody, profile: string,
       profile: profile as 'ai_outbound_shield' | 'full_stack',
       live_hlr: body.live_hlr === true,
       ownerKey,
-    }),
+    })),
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error('gate_timeout')), timeoutMs)),
   ]).catch(() => {
     if (body.mode === 'fail_open') {
