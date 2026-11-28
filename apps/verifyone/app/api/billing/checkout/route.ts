@@ -1,13 +1,25 @@
 export const dynamic = 'force-dynamic';
 
-// POST /api/billing/checkout { email, plan: STARTER|GROWTH|PRO }
-// -> { checkout_url } (Dodo Payments, merchant of record)
+// POST /api/billing/checkout { email, plan } -> { checkout_url }
+// LEGACY email-only checkout for pre-organization accounts (local development without Clerk).
+// When Clerk is configured, subscriptions belong to organizations: use the dashboard
+// (/dashboard/billing) or POST /api/v1/billing/checkout with an organization API key, so the
+// webhook can credit the paying organization exactly.
 import { NextRequest, NextResponse } from 'next/server';
 import { createCheckoutSession, dodoConfigured } from '../../../../lib/dodo';
-import { PLANS, normalizePlanKey, type PlanName } from '../../../../lib/plans';
+import { PLANS, normalizePlanKey } from '../../../../lib/plans';
 import { rateLimit, clientIp } from '../../../../lib/auth';
+import { clerkConfigured } from '../../../../lib/clerk';
 
 export async function POST(req: NextRequest) {
+  if (clerkConfigured()) {
+    return NextResponse.json({
+      error: 'use_organization_checkout',
+      message: 'Subscribe from your organization billing page, or call POST /api/v1/billing/checkout with an organization API key.',
+      billing_page: '/dashboard/billing',
+    }, { status: 410 });
+  }
+
   const ip = clientIp(req);
   if (!rateLimit('checkout:' + ip, 10, 60_000).ok) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
@@ -25,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (!dodoConfigured()) {
     return NextResponse.json({
       error: 'payments_not_configured',
-      message: 'Set DODO_PAYMENTS_API_KEY (and DODO_PRODUCT_*) in .env — see .env.example. Meanwhile, email us for a manual invoice.',
+      message: 'Set DODO_PAYMENTS_API_KEY (and DODO_PRODUCT_*) in .env — see .env.example.',
     }, { status: 503 });
   }
 
@@ -37,7 +49,8 @@ export async function POST(req: NextRequest) {
       returnUrl: `${appUrl}/dashboard?upgraded=1`,
     });
     return NextResponse.json({ checkout_url: session.checkout_url, session_id: session.session_id, plan: planName });
-  } catch (e: any) {
-    return NextResponse.json({ error: 'checkout_failed', detail: String(e?.message || e) }, { status: 502 });
+  } catch (e) {
+    console.error('[billing] legacy checkout failed', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'checkout_failed' }, { status: 502 });
   }
 }

@@ -148,8 +148,12 @@ async function applyInTx(tx: Tx, webhookId: string, evt: Json): Promise<BillingR
     for (const p of pending) {
       const pPlan = (p.plan && p.plan in PLANS ? (p.plan as PlanName) : null) ?? x.plan ?? orgPlan;
       if (!pPlan || !p.paymentId) continue;
-      // grantPaymentId is unique: if this payment was already granted elsewhere the transaction fails
-      // and is retried by Dodo; the duplicate path then records it without credits.
+      // Already granted by another delivery: close the parked row without credits.
+      if (await tx.paymentEvent.findUnique({ where: { grantPaymentId: p.paymentId }, select: { id: true } })) {
+        await tx.paymentEvent.update({ where: { id: p.id }, data: { status: 'duplicate_payment', resolvedAt: new Date() } });
+        continue;
+      }
+      // grantPaymentId is unique: under a true race the transaction fails and Dodo retries it.
       credits += await grantToOrg(tx, org.id, pPlan, p.paymentId, x.subscriptionId);
       await tx.paymentEvent.update({ where: { id: p.id }, data: { status: 'applied', orgId: org.id, plan: pPlan, credits: PLANS[pPlan].credits, grantPaymentId: p.paymentId, resolvedAt: new Date() } });
       resolved += 1;

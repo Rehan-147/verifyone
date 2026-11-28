@@ -153,10 +153,10 @@ export default async function DashboardPage() {
               Pre-dial gate contract, Vapi/Retell webhooks, MCP server, and bulk screening endpoints.
             </p>
           </Link>
-          <Link href="/pricing" className="dp-card p-6 hover:border-accent/40 transition-colors">
-            <h2 className="font-bold text-base text-ink font-display mb-1">Plans &amp; credits →</h2>
+          <Link href="/dashboard/billing" className="dp-card p-6 hover:border-accent/40 transition-colors">
+            <h2 className="font-bold text-base text-ink font-display mb-1">Billing &amp; plan →</h2>
             <p className="text-xs text-ink-secondary leading-relaxed">
-              Compare Starter, Growth, and Pro credit allowances.
+              See your plan, credit balance and payments, and subscribe or upgrade.
             </p>
           </Link>
         </section>
