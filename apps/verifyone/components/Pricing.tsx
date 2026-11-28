@@ -83,7 +83,7 @@ export default function Pricing() {
         {/* Credit + trial notes */}
         <div className="mt-10 text-center space-y-2">
           <p className="text-sm text-ink-secondary">
-            Credits roll over for 3 months. 7-day free trial on every plan.
+            Unused credits stay on your balance. Start free with starter credits — no card required.
           </p>
           <p className="text-xs text-ink-secondary/80">
             How credits work:{' '}

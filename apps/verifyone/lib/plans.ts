@@ -50,7 +50,7 @@ export const PLANS = {
     features: [
       'MCP AI-agent endpoint',
       'HubSpot webhook adapter (beta; not verified against a live account)',
-      'Dedicated SLA',
+      'Priority support',
       'Custom credits',
     ],
   },
