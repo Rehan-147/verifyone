@@ -11,7 +11,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   if (!item) return {};
   return {
     title: `VerifyOne vs ${item.competitor} | Feature & Cost Comparison`,
-    description: `Compare VerifyOne vs ${item.competitor}. See why agencies switch to VerifyOne for unified phone, email, and IP validation with rollover credits.`,
+    description: `Compare VerifyOne vs ${item.competitor}. See why agencies switch to VerifyOne for unified phone, email, and IP validation with one shared credit balance.`,
     alternates: { canonical: `https://app.verifyone.io/compare/${item.slug}` },
   };
 }
@@ -67,8 +67,8 @@ export default function ComparePage({ params }: { params: { slug: string } }) {
               </tr>
               <tr>
                 <td className="py-4 px-6 text-ink font-medium">Credit System</td>
-                <td className="py-4 px-6 text-accent font-medium">Universal shared credits with 3-month rollover</td>
-                <td className="py-4 px-6 text-ink-secondary">Per-API siloed plans, no rollover</td>
+                <td className="py-4 px-6 text-accent font-medium">One shared credit balance across checks; unused credits stay on the balance</td>
+                <td className="py-4 px-6 text-ink-secondary">Varies by vendor</td>
               </tr>
               <tr>
                 <td className="py-4 px-6 text-ink font-medium">AI &amp; Agent Native</td>

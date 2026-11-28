@@ -305,8 +305,8 @@ HTTP 401/403                 — missing or invalid API key
                 </tr>
                 <tr>
                   <td className="p-3 font-mono text-xs">full_stack</td>
-                  <td className="p-3 font-mono text-xs">3 credits / check</td>
-                  <td className="p-3 text-ink-secondary">Adds live HLR / carrier ping (requires a configured Telnyx key).</td>
+                  <td className="p-3 font-mono text-xs">5 credits / check</td>
+                  <td className="p-3 text-ink-secondary">Adds live carrier / line-type status and the reassigned-number check.</td>
                 </tr>
                 <tr>
                   <td className="p-3 font-mono text-xs">Email gate</td>
@@ -319,7 +319,7 @@ HTTP 401/403                 — missing or invalid API key
           <ul className="text-sm text-ink-secondary space-y-2 list-disc pl-5">
             <li>Rate limit: 120 requests/minute per identity (sliding window).</li>
             <li>Free tier: 500 gate checks/month per IP without a key; account signup includes starter credits.</li>
-            <li>Paid plans: <Link href="/pricing" className="text-accent font-semibold hover:underline">see pricing</Link>. Credits roll over for 3 months.</li>
+            <li>Paid plans: <Link href="/pricing" className="text-accent font-semibold hover:underline">see pricing</Link>. Unused credits stay on your balance. Out of credits → HTTP 402 <code className="font-mono text-xs">insufficient_credits</code> (treat as do-not-call).</li>
             <li>Credit costs vary by enabled checks; the bundled profiles above are the launch metering.</li>
           </ul>
 
