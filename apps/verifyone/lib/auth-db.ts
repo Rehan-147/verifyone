@@ -10,7 +10,7 @@ export type DbAccount = {
   keyHash: string;
   email: string;
   orgId?: string;
-  plan: 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
+  plan: 'FREE' | 'LITE' | 'STARTER' | 'GROWTH' | 'PRO';
   credits: number;
   createdAt: string;
   lastUsedAt?: string;

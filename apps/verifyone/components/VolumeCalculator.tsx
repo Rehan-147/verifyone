@@ -66,7 +66,7 @@ export default function VolumeCalculator() {
 
       <p className="text-[11px] text-ink-secondary/70 mt-4 leading-relaxed">
         Estimate only — actual credit usage depends on enabled checks and profiles (for example full_stack
-        HLR = 3 credits). This calculator does not represent an overage price or a quote.
+        = 5 credits). This calculator does not represent an overage price or a quote.
       </p>
     </div>
   );

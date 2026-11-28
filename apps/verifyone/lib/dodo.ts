@@ -1,6 +1,6 @@
 // DODO PAYMENTS — merchant of record (https://docs.dodopayments.com)
 import crypto from 'crypto';
-import { PLANS, type PlanName, normalizePlanKey } from './plans';
+import { PLANS, PLAN_ORDER, type PlanName, normalizePlanKey } from './plans';
 
 export { PLANS, type PlanName, normalizePlanKey };
 
@@ -9,6 +9,8 @@ export function dodoConfigured() {
 }
 
 function dodoBase() {
+  // Test-only override (e.g. a local mock server); ignored in production.
+  if (process.env.NODE_ENV !== 'production' && process.env.DODO_API_BASE) return process.env.DODO_API_BASE.replace(/\/$/, '');
   const env = (process.env.DODO_PAYMENTS_ENVIRONMENT || 'test_mode').toLowerCase();
   return env.includes('live') ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com';
 }
@@ -18,10 +20,10 @@ export function productIdForPlan(plan: PlanName): string | undefined {
 }
 
 export function planForProductId(pid: string): PlanName | undefined {
-  return (['STARTER', 'GROWTH', 'PRO'] as PlanName[]).find((p) => process.env[`DODO_PRODUCT_${p}`] === pid);
+  return PLAN_ORDER.find((p) => process.env[`DODO_PRODUCT_${p}`] === pid);
 }
 
-export async function createCheckoutSession(opts: { email: string; plan: PlanName; returnUrl: string }) {
+export async function createCheckoutSession(opts: { email: string; plan: PlanName; returnUrl: string; orgId?: string }) {
   const productId = productIdForPlan(opts.plan);
   if (!productId) {
     throw new Error(`DODO_PRODUCT_${opts.plan} not set — create "${PLANS[opts.plan].name}" ($${PLANS[opts.plan].priceUsd}/mo) in Dodo and paste prod_... id`);
@@ -39,6 +41,8 @@ export async function createCheckoutSession(opts: { email: string; plan: PlanNam
       metadata: {
         email: opts.email,
         plan: opts.plan,
+        // The organization that pays; the webhook credits this org (falls back to email for legacy accounts).
+        ...(opts.orgId ? { org_id: opts.orgId } : {}),
         product: 'verifyone_shield',
         shield_checks: PLANS[opts.plan].shieldChecksMonthly,
       },

@@ -78,7 +78,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       {
         h: 'Billing',
         p: [
-          'Paid plans are billed through Dodo Payments (merchant of record). Credits roll over for 3 months. Cancel any time; see the pricing page for current terms.',
+          'Paid plans are billed through Dodo Payments (merchant of record). Unused credits stay on your balance. Cancel any time; see the pricing page for current terms.',
         ],
       },
       {

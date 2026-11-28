@@ -84,7 +84,14 @@ try {
     VERIFYONE_TEST_HOOKS: '1',
     VAPI_API_BASE: 'http://localhost:3999', RETELL_API_BASE: 'http://localhost:3999',
     BASE_URL: 'http://localhost:3200', MOCK_URL: 'http://localhost:3999',
-    DB_MODE: dbMode ? '1' : '0', NEXT_TELEMETRY_DISABLED: '1' };
+    DB_MODE: dbMode ? '1' : '0', NEXT_TELEMETRY_DISABLED: '1',
+    // Billing tests: Dodo checkout goes to the mock server; webhooks are signed with this test secret.
+    DODO_API_BASE: 'http://localhost:3999', DODO_PAYMENTS_API_KEY: 'test_dodo_key_0000',
+    DODO_PAYMENTS_WEBHOOK_KEY: 'whsec_' + randomBytes(24).toString('base64'),
+    DODO_PRODUCT_LITE: 'prod_test_lite', DODO_PRODUCT_STARTER: 'prod_test_starter',
+    DODO_PRODUCT_GROWTH: 'prod_test_growth', DODO_PRODUCT_PRO: 'prod_test_pro' };
+  // The test server must never pick up real Clerk keys: billing tests use API keys only.
+  for (const k of Object.keys(env)) if (k.includes('CLERK')) delete env[k];
   if (!dbMode) {
     env.VERIFYONE_FORCE_FILE_MODE = '1';
     delete env.DATABASE_URL;
@@ -119,7 +126,7 @@ try {
   }
   console.log(`Sanity check PASS: audit.persistence=${persistence} (mode=${dbMode ? 'postgres' : 'file'})`);
 
-  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-calling-hours', 'test-bulk', 'test-org-keys', 'test-suppression', 'test-reviews', 'test-frequency', 'test-scan', 'test-gate-deadline', 'chain-concurrency']) {
+  for (const suite of ['test-quota', 'test-credits', 'test-dial', 'test-calling-hours', 'test-bulk', 'test-org-keys', 'test-suppression', 'test-reviews', 'test-frequency', 'test-scan', 'test-billing', 'test-gate-deadline', 'chain-concurrency']) {
     const started = Date.now();
     const child = start([path.join(app, 'scripts', suite + '.mjs')], env, sandbox);
     const code = await new Promise(resolve => { child.once('exit', code => resolve(code ?? 1)); child.once('error', () => resolve(1)); });

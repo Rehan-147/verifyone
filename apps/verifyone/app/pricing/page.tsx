@@ -2,30 +2,36 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Pricing from '../../components/Pricing';
 import VolumeCalculator from '../../components/VolumeCalculator';
+import { PLANS } from '../../lib/plans';
+
+// Generated from lib/plans.ts so the advertised prices can never drift from what checkout grants.
+const PLAN_SUMMARY = Object.values(PLANS)
+  .map((p) => `${p.name} $${p.priceUsd.toLocaleString('en-US')}/mo (${p.credits.toLocaleString('en-US')} credits)`)
+  .join(', ');
 
 export const metadata: Metadata = {
   title: 'Pricing — Plans & Credits',
   description:
-    'VerifyOne pricing: Starter $149/mo (30,000 credits), Growth $449/mo (120,000 credits), Pro $999/mo (400,000 credits). Credits roll over for 3 months. One bundled credit per pre-dial gate check at launch.',
+    `VerifyOne pricing: ${PLAN_SUMMARY}. One credit per standard pre-dial gate check; full_stack checks cost 5 credits.`,
   alternates: { canonical: 'https://app.verifyone.io/pricing' },
 };
 
 const CREDIT_FAQ = [
   {
-    q: 'Do credits roll over?',
-    a: 'Yes — unused credits roll over for 3 months from the month they were granted. Plan allowances reset monthly.',
+    q: 'Do unused credits expire?',
+    a: 'Not today. Each paid billing period adds that plan\'s credits to your balance, and unused credits stay on the balance. Any change to this will be published on this page before it takes effect.',
   },
   {
     q: 'What happens if I run out of credits mid-campaign?',
-    a: 'Gate checks stop being metered against your plan and fall back to the free-tier quota, so nothing silently fails — but you should top up or upgrade before resuming a live campaign. There is no automatic overage billing in the current billing implementation.',
+    a: 'Authenticated gate checks stop: the API returns HTTP 402 (insufficient_credits) and no call decision is issued, so your dialer must treat it as do-not-call. Nothing is silently allowed. Upgrade or wait for your next billing period to resume. There is no automatic overage billing.',
   },
   {
     q: 'Can I cancel?',
-    a: 'Yes. Cancel any time from the billing provider (Dodo Payments). Your plan stays active until the end of the current billing period; credits already granted remain available until their 3-month rollover window expires.',
+    a: 'Yes. Cancel any time from the billing provider (Dodo Payments). Your plan stays active until the end of the current billing period; credits already granted stay on your balance after the plan ends.',
   },
   {
     q: 'Is there a free trial?',
-    a: 'Every plan includes a 7-day free trial. You can also start without a paid plan: the free tier gives you 500 gate checks/month per IP, and a free account includes starter credits — no card required.',
+    a: 'Paid plans have no trial period. You can evaluate for free instead: a free account includes starter credits, keyless requests get 500 gate checks/month per IP, and the free list scan at /scan needs no account — no card required for any of them.',
   },
   {
     q: 'What payment methods do you accept?',
@@ -78,8 +84,8 @@ export default function PricingPage() {
                 </tr>
                 <tr>
                   <td className="p-3 font-mono text-xs">full_stack</td>
-                  <td className="p-3 font-mono text-xs">3 per check</td>
-                  <td className="p-3 text-ink-secondary">Adds live HLR / carrier status (requires a Telnyx key on the account).</td>
+                  <td className="p-3 font-mono text-xs">5 per check</td>
+                  <td className="p-3 text-ink-secondary">Adds live carrier / line-type status and the reassigned-number check (paid per-lookup data sources).</td>
                 </tr>
                 <tr>
                   <td className="p-3 font-mono text-xs">Email gate</td>
@@ -100,14 +106,14 @@ export default function PricingPage() {
           <VolumeCalculator />
         </section>
 
-        {/* Trial terms */}
+        {/* Free evaluation terms */}
         <section className="mt-16 max-w-3xl mx-auto">
-          <h2 className="text-2xl font-extrabold text-ink font-display tracking-tight mb-4">Trial terms</h2>
+          <h2 className="text-2xl font-extrabold text-ink font-display tracking-tight mb-4">Free evaluation</h2>
           <ul className="text-sm text-ink-secondary space-y-2 list-disc pl-5 leading-relaxed">
-            <li>7-day free trial on every paid plan — no charge until the trial ends.</li>
             <li>Free tier (no plan): 500 gate checks/month per IP, no card required.</li>
             <li>Free account: starter credits, no card required — enough to evaluate the gate in your stack.</li>
-            <li>Credits roll over for 3 months on every plan.</li>
+            <li>Free list scan at <Link href="/scan" className="text-accent font-semibold hover:underline">/scan</Link>: aggregate risk summary for a CSV, no account.</li>
+            <li>Paid plans have no trial period; unused paid credits stay on your balance.</li>
           </ul>
         </section>
 

@@ -46,7 +46,7 @@ try {
     }
     const after = await balance();
     const ok = before - after === test.cost;
-    console.log(`${ok ? 'PASS' : 'FAIL'} ${test.label} (before ${before}, after ${after})`);
+    console.log(`${ok ? 'PASS' : 'FAIL'} ${test.label} (before ${before}, after ${after}${ok ? '' : `, decision ${payload.decision}/${payload.reason}`})`);
     if (!ok) failures++;
   }
 } catch (error) {
