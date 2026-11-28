@@ -1,7 +1,7 @@
 import { creditsAvailable, findAccountByEmail, meter } from './auth';
 import { sealEvidence } from './audit-store';
 import { gateBundleCredits } from './credits';
-import { runPhoneGateDecision } from './gate-service';
+import { gateDeadlineMs, runPhoneGateDecision } from './gate-service';
 import { allowDevMocks } from './compliance-policy';
 import { buildDataSourceReceipts } from './compliance-cache';
 import {
@@ -39,7 +39,7 @@ async function processRows(rows: BulkRow[], job: NonNullable<Awaited<ReturnType<
           mode: 'fail_closed',
           profile: job.profile,
           ownerKey: job.ownerKey,
-        }, job.profile, job.profile === 'full_stack' ? 2000 : 1000);
+        }, job.profile, gateDeadlineMs(job.profile));
         const sealed = await sealEvidence({
           phone: row.phone || '',
           channel: 'bulk',

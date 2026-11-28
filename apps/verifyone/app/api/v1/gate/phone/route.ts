@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 // -> { decision: ALLOW|DENY, reason, evidence_id, ... }
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { runPhoneGateDecision } from '../../../../../lib/gate-service';
+import { gateDeadlineMs, gateLatencyTargetMs, runPhoneGateDecision } from '../../../../../lib/gate-service';
 import { sealEvidence, checkAndBumpQuota, saveTicket } from '../../../../../lib/audit-store';
 import { authenticate, meter, rateLimit, creditsAvailable, hasKeyHeader, clientIp } from '../../../../../lib/auth';
 import { ownerKeyFor } from '../../../../../lib/platform-credentials';
@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
   const profile = resolveGateProfile(body as { profile?: string; live_hlr?: boolean });
   const consentIn = (body.consent ?? {}) as Record<string, unknown>;
   const bundleCredits = gateBundleCredits(profile, { trustedform: typeof consentIn.trustedform_cert_url === 'string' });
-  const latencyBudgetMs = profile === 'full_stack' ? 800 : 95;
-  const gateTimeoutMs = latencyBudgetMs;
+  const latencyBudgetMs = gateLatencyTargetMs(profile);
+  const gateTimeoutMs = gateDeadlineMs(profile);
 
   const callerKey = acc?.email || 'ip:' + ip;
   if (acc && !creditsAvailable(acc, bundleCredits)) {
